@@ -103,7 +103,8 @@ router.post("/recommendations", async (req, res) => {
 
     let parsed: RecommendationResponse;
     try {
-      parsed = JSON.parse(raw);
+      const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim();
+      parsed = JSON.parse(cleaned);
     } catch {
       req.log.error({ raw }, "Failed to parse Claude response as JSON");
       res.status(502).json({
