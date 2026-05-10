@@ -33,7 +33,14 @@
         </section>
 
         <section class="input-section">
-          <label class="input-label" for="item-input">What books have you read?</label>
+          <div class="input-label-row">
+            <label class="input-label" for="item-input">What books have you read?</label>
+            <button class="import-btn" id="import-btn" type="button">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Import Goodreads CSV
+            </button>
+            <input type="file" id="csv-file-input" accept=".csv" style="display:none" />
+          </div>
           <div class="input-row">
             <input
               type="text"
@@ -63,9 +70,9 @@
           <div class="taste-profile-card" id="taste-profile-card">
             <div class="taste-profile-header">
               <h2 class="taste-profile-title">Your Taste Profile</h2>
-              <button class="copy-btn" id="copy-btn" title="Copy to clipboard">
+              <button class="copy-btn" id="copy-btn" title="Copy shareable summary">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                <span class="copy-label">Copy</span>
+                <span class="copy-label">Share</span>
               </button>
             </div>
             <p class="taste-profile-text" id="taste-profile-text"></p>
@@ -109,7 +116,10 @@
         <p class="rec-why"></p>
         <div class="rec-footer">
           <span class="rec-vibe"></span>
-          <a class="rec-link" target="_blank" rel="noopener noreferrer">Find on Amazon →</a>
+          <div class="rec-actions">
+            <button class="read-this-btn" type="button">I've read this</button>
+            <a class="rec-link" target="_blank" rel="noopener noreferrer">Find on Amazon →</a>
+          </div>
         </div>
       </li>
     </template>

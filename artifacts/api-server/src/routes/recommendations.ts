@@ -13,6 +13,12 @@ interface RecommendationRequest {
   category: string;
 }
 
+interface ReplaceRequest {
+  items: RatedItem[];
+  exclude: string[];
+  category: string;
+}
+
 interface Recommendation {
   title: string;
   author: string;
@@ -27,10 +33,16 @@ interface RecommendationResponse {
   recommendations: Recommendation[];
 }
 
+function parseClaudeJson<T>(raw: string): T {
+  const cleaned = raw
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/```\s*$/i, "")
+    .trim();
+  return JSON.parse(cleaned) as T;
+}
+
 function buildPrompt(items: RatedItem[], category: string): string {
-  const itemLines = items
-    .map((i) => `- "${i.name}" (${i.rating})`)
-    .join("\n");
+  const itemLines = items.map((i) => `- "${i.name}" (${i.rating})`).join("\n");
 
   return `You are an honest, agenda-free ${category} recommendation engine. You have no commercial affiliations, no sponsored content, and no hidden agenda. Your only goal is to understand someone's taste and give them genuinely useful recommendations.
 
@@ -70,6 +82,44 @@ Rules:
 - amazon_search must be a valid Amazon search URL with the book title and author encoded`;
 }
 
+function buildReplacePrompt(
+  items: RatedItem[],
+  exclude: string[],
+  category: string,
+): string {
+  const itemLines = items.map((i) => `- "${i.name}" (${i.rating})`).join("\n");
+  const excludeLines = exclude.map((t) => `- "${t}"`).join("\n");
+
+  return `You are an honest, agenda-free ${category} recommendation engine with no commercial agenda.
+
+Here are the ${category} this person has read, along with their ratings:
+
+${itemLines}
+
+Rating key: loved = adored it, liked = enjoyed it, meh = didn't connect, abandoned = couldn't finish, unrated = no opinion.
+
+These books have already been recommended and must NOT be suggested again:
+${excludeLines}
+
+Recommend exactly ONE new ${category} this person hasn't seen yet that fits their taste.
+
+Respond ONLY with valid JSON — no markdown, no explanation, no code fences. Use exactly this shape:
+
+{
+  "title": "Book Title",
+  "author": "Author Name",
+  "match_score": 87,
+  "why": "One or two sentences explaining why this fits their specific taste.",
+  "vibe": "A short evocative phrase",
+  "amazon_search": "https://www.amazon.com/s?k=Book+Title+Author+Name"
+}
+
+Rules:
+- match_score must be a number between 60 and 99
+- Do not suggest anything from either the read list or the already-recommended list
+- Do not include any text outside the JSON object`;
+}
+
 router.post("/recommendations", async (req, res) => {
   const apiKey = process.env["CLAUDE_API_KEY"];
   if (!apiKey) {
@@ -90,12 +140,7 @@ router.post("/recommendations", async (req, res) => {
     const message = await client.messages.create({
       model: "claude-sonnet-4-5",
       max_tokens: 2048,
-      messages: [
-        {
-          role: "user",
-          content: buildPrompt(items, category),
-        },
-      ],
+      messages: [{ role: "user", content: buildPrompt(items, category) }],
     });
 
     const raw =
@@ -103,8 +148,7 @@ router.post("/recommendations", async (req, res) => {
 
     let parsed: RecommendationResponse;
     try {
-      const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim();
-      parsed = JSON.parse(cleaned);
+      parsed = parseClaudeJson<RecommendationResponse>(raw);
     } catch {
       req.log.error({ raw }, "Failed to parse Claude response as JSON");
       res.status(502).json({
@@ -123,6 +167,64 @@ router.post("/recommendations", async (req, res) => {
     res.json(parsed);
   } catch (err: unknown) {
     req.log.error({ err }, "Claude API error");
+    const message =
+      err instanceof Error ? err.message : "Unknown error from AI service.";
+    res.status(502).json({ error: message });
+  }
+});
+
+router.post("/recommendations/replace", async (req, res) => {
+  const apiKey = process.env["CLAUDE_API_KEY"];
+  if (!apiKey) {
+    res.status(500).json({ error: "CLAUDE_API_KEY is not configured." });
+    return;
+  }
+
+  const { items, exclude = [], category = "books" } = req.body as ReplaceRequest;
+
+  if (!Array.isArray(items) || items.length === 0) {
+    res.status(400).json({ error: "Please provide at least one item." });
+    return;
+  }
+
+  const client = new Anthropic({ apiKey });
+
+  try {
+    const message = await client.messages.create({
+      model: "claude-sonnet-4-5",
+      max_tokens: 512,
+      messages: [
+        {
+          role: "user",
+          content: buildReplacePrompt(items, exclude, category),
+        },
+      ],
+    });
+
+    const raw =
+      message.content[0].type === "text" ? message.content[0].text : "";
+
+    let rec: Recommendation;
+    try {
+      rec = parseClaudeJson<Recommendation>(raw);
+    } catch {
+      req.log.error({ raw }, "Failed to parse Claude replace response as JSON");
+      res.status(502).json({
+        error: "Received an unexpected response from the AI. Please try again.",
+      });
+      return;
+    }
+
+    if (!rec.title || !rec.author) {
+      res.status(502).json({
+        error: "AI response was missing required fields. Please try again.",
+      });
+      return;
+    }
+
+    res.json({ recommendation: rec });
+  } catch (err: unknown) {
+    req.log.error({ err }, "Claude API replace error");
     const message =
       err instanceof Error ? err.message : "Unknown error from AI service.";
     res.status(502).json({ error: message });
