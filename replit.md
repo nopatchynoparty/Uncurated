@@ -41,7 +41,7 @@ Users select Books (Podcasts/TV/Music coming soon), add titles they've read, rat
 
 - Vanilla HTML/CSS/JS frontend (no React)
 - Dark/light mode via system preference, no toggle needed
-- Claude model: `claude-opus-4-5`
+- Claude model: `claude-sonnet-4-5`
 - Amazon affiliate search links (no hardcoded affiliate tags)
 
 ## Gotchas
