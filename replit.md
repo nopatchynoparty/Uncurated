@@ -1,45 +1,51 @@
-# [Project name]
+# Taste
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+An honest, agenda-free recommendation engine powered by Claude. No algorithms, no sponsors — just recommendations based on your actual taste.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/api-server run dev` — run the API server (port 8080)
+- `pnpm --filter @workspace/taste-app run dev` — run the frontend (port 25961)
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- Required env: `CLAUDE_API_KEY` — Anthropic API key
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- API: Express 5 (`artifacts/api-server`)
+- Frontend: Vite + vanilla TypeScript/HTML/CSS (`artifacts/taste-app`)
+- AI: Anthropic Claude (`claude-sonnet-4-20250514`) via `@anthropic-ai/sdk`
+- No database needed — stateless per-request
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/api-server/src/routes/recommendations.ts` — Claude API call, prompt, JSON parsing
+- `artifacts/taste-app/index.html` — full app HTML with `<template>` elements
+- `artifacts/taste-app/src/app.ts` — all vanilla JS app logic
+- `artifacts/taste-app/src/styles.css` — CSS with dark/light mode via `prefers-color-scheme`
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Frontend is vanilla TypeScript compiled by Vite (no React) — keeps bundle tiny and matches the user's explicit preference
+- API server serves `/api/*`; Vite dev server serves `/` — proxy routes them correctly in dev and prod
+- Claude prompt forces JSON-only output with explicit shape; the route validates the parsed result before returning it
+- No DB or session storage — recommendations are ephemeral per request
+- `CLAUDE_API_KEY` is stored as a Replit secret, never in code
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+Users select Books (Podcasts/TV/Music coming soon), add titles they've read, rate each one (Loved/Liked/Meh/DNF), then request recommendations. Claude returns a taste profile paragraph and 5 personalized book picks with match scores, explanations, vibe tags, and Amazon search links.
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Vanilla HTML/CSS/JS frontend (no React)
+- Dark/light mode via system preference, no toggle needed
+- Claude model: `claude-sonnet-4-20250514`
+- Amazon affiliate search links (no hardcoded affiliate tags)
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
-
-## Pointers
-
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- The API server has `@workspace/db` in dependencies but does NOT import it — no `DATABASE_URL` needed
+- Claude prompt must force JSON-only output — any markdown/text wrapping breaks the JSON.parse()
+- `__dirname` in `app.ts` uses `fileURLToPath(import.meta.url)` because the server is ESM
