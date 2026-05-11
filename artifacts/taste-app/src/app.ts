@@ -233,6 +233,11 @@ function showError(msg: string): void {
 }
 
 async function fetchRecommendations(): Promise<void> {
+  if (items.length < 3) {
+    showError("Add at least 3 books to get a good recommendation.");
+    return;
+  }
+
   const payload = items.map((i) => ({ name: i.name, rating: i.rating || "unrated" }));
 
   findBtn.disabled = true;

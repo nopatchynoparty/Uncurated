@@ -229,9 +229,7 @@ router.post("/recommendations", async (req, res) => {
   } catch (err: unknown) {
     clearTimeout(timer);
     req.log.error({ err }, "Claude API error");
-    const message =
-      err instanceof Error ? err.message : "Unknown error from AI service.";
-    res.status(502).json({ error: message });
+    res.status(502).json({ error: "Something went wrong reaching the AI. Please try again." });
   }
 });
 
@@ -319,9 +317,7 @@ router.post("/recommendations/replace", async (req, res) => {
   } catch (err: unknown) {
     clearTimeout(timer);
     req.log.error({ err }, "Claude API replace error");
-    const message =
-      err instanceof Error ? err.message : "Unknown error from AI service.";
-    res.status(502).json({ error: message });
+    res.status(502).json({ error: "Something went wrong reaching the AI. Please try again." });
   }
 });
 
