@@ -18,6 +18,7 @@
   --liked: #6ab0f5;
   --meh: #f5c543;
   --abandoned: #f87171;
+  --hated: #e53e3e;
   --radius: 10px;
   --radius-sm: 6px;
   --font: "DM Sans", system-ui, sans-serif;
@@ -307,6 +308,7 @@ body {
 .rating-btn.active[data-rating="liked"]    { background: var(--liked);    border-color: var(--liked);    color: #000; }
 .rating-btn.active[data-rating="meh"]     { background: var(--meh);     border-color: var(--meh);     color: #000; }
 .rating-btn.active[data-rating="abandoned"] { background: var(--abandoned); border-color: var(--abandoned); color: #fff; }
+.rating-btn.active[data-rating="hated"]   { background: var(--hated);   border-color: var(--hated);   color: #fff; }
 
 .remove-btn {
   background: none;

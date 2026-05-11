@@ -92,6 +92,7 @@ Rating key:
 - liked: they enjoyed it
 - meh: it didn't connect with them
 - abandoned: they couldn't finish it
+- hated: they finished it but strongly disliked it
 - unrated: no opinion provided
 
 Based on these ratings, analyze their taste and recommend 5 ${category} they are very likely to love.
@@ -143,7 +144,7 @@ Here are the ${category} this person has read, along with their ratings:
 
 ${itemLines}
 
-Rating key: loved = adored it, liked = enjoyed it, meh = did not connect, abandoned = could not finish, unrated = no opinion.
+Rating key: loved = adored it, liked = enjoyed it, meh = did not connect, abandoned = could not finish, hated = finished but strongly disliked, unrated = no opinion.
 
 FORBIDDEN TITLES — do not suggest any of these under any circumstances. Treat a title as forbidden if it matches in any form, including with or without a series prefix, subtitle, or punctuation differences (e.g. "Leviathan Wakes" and "The Expanse: Leviathan Wakes" are the same):
 ${forbiddenLines}

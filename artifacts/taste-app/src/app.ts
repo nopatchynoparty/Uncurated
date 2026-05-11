@@ -365,7 +365,7 @@ function parseGoodreadsCSV(text: string): void {
       ratingRaw === 5 ? "loved"
       : ratingRaw === 4 ? "liked"
       : ratingRaw === 3 ? "meh"
-      : ratingRaw >= 1 ? "abandoned"
+      : ratingRaw >= 1 ? "hated"
       : null;
 
     if (rating) rated.push({ title, rating });
