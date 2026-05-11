@@ -355,7 +355,10 @@ function parseGoodreadsCSV(text: string): void {
     return;
   }
 
-  let imported = 0;
+  interface CsvEntry { title: string; rating: string | null; }
+  const rated: CsvEntry[] = [];
+  const unrated: CsvEntry[] = [];
+
   for (let i = 1; i < lines.length; i++) {
     const cols = parseCSVLine(lines[i]);
     const shelf = shelfIdx !== -1 ? cols[shelfIdx]?.trim() : "";
@@ -363,6 +366,7 @@ function parseGoodreadsCSV(text: string): void {
 
     const title = cols[titleIdx]?.trim();
     if (!title) continue;
+    if (items.some((it) => it.name.toLowerCase() === title.toLowerCase())) continue;
 
     const ratingRaw = ratingIdx !== -1 ? parseInt(cols[ratingIdx] ?? "0", 10) : 0;
     const rating =
@@ -372,21 +376,26 @@ function parseGoodreadsCSV(text: string): void {
       : ratingRaw >= 1 ? "abandoned"
       : null;
 
-    const author = authorIdx !== -1 ? cols[authorIdx]?.trim() : undefined;
+    if (rating) rated.push({ title, rating });
+    else unrated.push({ title, rating: null });
+  }
 
-    if (items.some((it) => it.name.toLowerCase() === title.toLowerCase())) continue;
+  // Prioritise rated books; fill remaining slots with unrated up to 500 total
+  const CAP = 500;
+  const toAdd = [...rated, ...unrated].slice(0, CAP);
 
-    const item: Item = { id: generateId(), name: title, rating };
+  let imported = 0;
+  for (const entry of toAdd) {
+    const item: Item = { id: generateId(), name: entry.title, rating: entry.rating };
     items.push(item);
     renderItem(item);
-    if (rating) {
+    if (entry.rating) {
       const el = document.querySelector(`[data-item-id="${item.id}"]`);
       el?.querySelectorAll(".rating-btn").forEach((btn) => {
         const b = btn as HTMLElement;
-        b.classList.toggle("active", b.dataset.rating === rating);
+        b.classList.toggle("active", b.dataset.rating === entry.rating);
       });
     }
-    void author;
     imported++;
   }
 

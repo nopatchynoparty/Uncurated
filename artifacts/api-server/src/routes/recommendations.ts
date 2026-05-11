@@ -170,8 +170,8 @@ router.post("/recommendations", async (req, res) => {
     res.status(400).json({ error: "Please provide at least one item." });
     return;
   }
-  if (items.length > 100) {
-    res.status(400).json({ error: "Too many items. Please provide at most 100." });
+  if (items.length > 500) {
+    res.status(400).json({ error: "Too many items. Please provide at most 500." });
     return;
   }
   if (items.some((i) => typeof i.name !== "string" || i.name.length > 200)) {
@@ -251,8 +251,8 @@ router.post("/recommendations/replace", async (req, res) => {
     res.status(400).json({ error: "Please provide at least one item." });
     return;
   }
-  if (items.length > 100) {
-    res.status(400).json({ error: "Too many items. Please provide at most 100." });
+  if (items.length > 500) {
+    res.status(400).json({ error: "Too many items. Please provide at most 500." });
     return;
   }
   if (items.some((i) => typeof i.name !== "string" || i.name.length > 200)) {
