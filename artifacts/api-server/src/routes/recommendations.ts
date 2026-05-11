@@ -16,6 +16,7 @@ interface RecommendationRequest {
 interface ReplaceRequest {
   items: RatedItem[];
   exclude: string[];
+  currentlyShown: string[];
   category: string;
 }
 
@@ -59,17 +60,17 @@ Rating key:
 
 Based on these ratings, analyze their taste and recommend 5 ${category} they are very likely to love.
 
-Respond ONLY with valid JSON — no markdown, no explanation, no code fences. Use exactly this shape:
+Respond ONLY with valid JSON. Your response must begin with { and end with }. Do not use backticks, markdown, code fences, or any text outside the JSON object. Use exactly this shape:
 
 {
-  "taste_profile": "A 2–3 sentence honest description of their reading taste and what makes them tick as a reader.",
+  "taste_profile": "A 2-3 sentence honest description of their reading taste and what makes them tick as a reader.",
   "recommendations": [
     {
       "title": "Book Title",
       "author": "Author Name",
       "match_score": 87,
-      "why": "One or two sentences explaining why this fits their specific taste based on what they loved and didn't love.",
-      "vibe": "A short evocative phrase (e.g. 'slow-burn literary fiction' or 'propulsive thriller')",
+      "why": "One or two sentences explaining why this fits their specific taste based on what they loved and did not love.",
+      "vibe": "A short evocative phrase (e.g. slow-burn literary fiction or propulsive thriller)",
       "amazon_search": "https://www.amazon.com/s?k=Book+Title+Author+Name"
     }
   ]
@@ -78,13 +79,14 @@ Respond ONLY with valid JSON — no markdown, no explanation, no code fences. Us
 Rules:
 - match_score must be a number between 60 and 99
 - Do not recommend anything the user has already listed
-- Do not include any text outside the JSON object
-- amazon_search must be a valid Amazon search URL with the book title and author encoded`;
+- amazon_search must be a valid Amazon search URL with the book title and author URL-encoded
+- Your entire response must be valid JSON starting with { and ending with } — nothing else`;
 }
 
 function buildReplacePrompt(
   items: RatedItem[],
   exclude: string[],
+  currentlyShown: string[],
   category: string,
 ): string {
   const itemLines = items.map((i) => `- "${i.name}" (${i.rating})`).join("\n");
@@ -94,20 +96,30 @@ function buildReplacePrompt(
     .map((t) => `- "${t}"`)
     .join("\n");
 
+  const shownLines =
+    currentlyShown.length > 0
+      ? currentlyShown.map((t) => `- "${t}"`).join("\n")
+      : "(none)";
+
   return `You are an honest, agenda-free ${category} recommendation engine with no commercial agenda.
 
 Here are the ${category} this person has read, along with their ratings:
 
 ${itemLines}
 
-Rating key: loved = adored it, liked = enjoyed it, meh = didn't connect, abandoned = couldn't finish, unrated = no opinion.
+Rating key: loved = adored it, liked = enjoyed it, meh = did not connect, abandoned = could not finish, unrated = no opinion.
 
-CRITICAL — the following titles are FORBIDDEN. Do not suggest any of them under any circumstances, even if they seem like a perfect fit:
+FORBIDDEN TITLES — do not suggest any of these under any circumstances. Treat a title as forbidden if it matches in any form, including with or without a series prefix, subtitle, or punctuation differences (e.g. "Leviathan Wakes" and "The Expanse: Leviathan Wakes" are the same):
 ${forbiddenLines}
 
-Recommend exactly ONE ${category} that is NOT on the forbidden list above and fits this person's taste.
+CURRENTLY SHOWN — these are already visible to the user right now and must also not be suggested:
+${shownLines}
 
-Respond ONLY with valid JSON — no markdown, no explanation, no code fences. Use exactly this shape:
+Recommend exactly ONE ${category} that does not appear in either list above and fits this person's taste.
+
+Before responding, silently check your chosen title against every item in both lists above. If there is any match — even a partial or reformatted one — pick a different book. Only respond when you are certain the title is not in either list.
+
+Respond ONLY with valid JSON. Your response must begin with { and end with }. Do not use backticks, markdown, code fences, or any text outside the JSON object. Use exactly this shape:
 
 {
   "title": "Book Title",
@@ -120,8 +132,8 @@ Respond ONLY with valid JSON — no markdown, no explanation, no code fences. Us
 
 Rules:
 - match_score must be a number between 60 and 99
-- The title MUST NOT appear in the forbidden list above — double-check before responding
-- Do not include any text outside the JSON object`;
+- The title must not appear in either list above in any form
+- Your entire response must be valid JSON starting with { and ending with } — nothing else`;
 }
 
 router.post("/recommendations", async (req, res) => {
@@ -187,6 +199,7 @@ router.post("/recommendations/replace", async (req, res) => {
   const {
     items,
     exclude = [],
+    currentlyShown = [],
     category = "books",
   } = req.body as ReplaceRequest;
 
@@ -204,7 +217,7 @@ router.post("/recommendations/replace", async (req, res) => {
       messages: [
         {
           role: "user",
-          content: buildReplacePrompt(items, exclude, category),
+          content: buildReplacePrompt(items, exclude, currentlyShown, category),
         },
       ],
     });

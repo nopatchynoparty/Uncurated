@@ -160,6 +160,9 @@ async function replaceRec(cardEl: HTMLElement, oldTitle: string): Promise<void> 
     ...Array.from(seenTitles),
     ...items.map((i) => i.name.toLowerCase()),
   ];
+  const currentlyShown = currentRecs
+    .filter((r) => r.title !== oldTitle)
+    .map((r) => r.title);
   const payload = items.map((i) => ({ name: i.name, rating: i.rating || "unrated" }));
 
   try {
@@ -169,6 +172,7 @@ async function replaceRec(cardEl: HTMLElement, oldTitle: string): Promise<void> 
       body: JSON.stringify({
         items: payload,
         exclude: excludeTitles,
+        currentlyShown,
         category: "books",
       }),
     });
