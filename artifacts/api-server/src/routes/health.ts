@@ -9,6 +9,9 @@ router.get("/healthz", (_req, res) => {
   res.json(data);
 });
 
-router.get("/token", issueSession);
+router.get("/token", (req, res, next) => {
+  res.set("Cache-Control", "no-store");
+  next();
+}, issueSession);
 
 export default router;

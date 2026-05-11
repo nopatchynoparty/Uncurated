@@ -1,8 +1,11 @@
 import { createHmac, randomBytes, timingSafeEqual } from "crypto";
 import { type RequestHandler } from "express";
 
-const SECRET =
-  process.env["CALLER_AUTH_SECRET"] ?? randomBytes(32).toString("hex");
+const SECRET = (() => {
+  const s = process.env["SESSION_SECRET"];
+  if (!s) throw new Error("SESSION_SECRET environment variable is not set.");
+  return s;
+})();
 
 const SESSION_COOKIE = "uncurated_sid";
 const SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000;
