@@ -273,7 +273,7 @@ function buildShareText(): string {
   return (
     `My reader profile: ${currentTasteProfile}\n\n` +
     `Top match: ${top.title} by ${top.author} (${score} match) — ${top.vibe}\n\n` +
-    `via Taste`
+    `via Uncurated`
   );
 }
 

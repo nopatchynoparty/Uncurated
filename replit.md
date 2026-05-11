@@ -1,4 +1,4 @@
-# Taste
+# Uncurated
 
 An honest, agenda-free recommendation engine powered by Claude. No algorithms, no sponsors — just recommendations based on your actual taste.
 
