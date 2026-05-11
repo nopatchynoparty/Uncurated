@@ -88,7 +88,14 @@ function buildReplacePrompt(
   category: string,
 ): string {
   const itemLines = items.map((i) => `- "${i.name}" (${i.rating})`).join("\n");
-  const excludeLines = exclude.map((t) => `- "${t}"`).join("\n");
+
+  const allForbidden = [
+    ...items.map((i) => i.name),
+    ...exclude,
+  ];
+  const forbiddenLines = [...new Set(allForbidden.map((t) => t.toLowerCase()))]
+    .map((t) => `- "${t}"`)
+    .join("\n");
 
   return `You are an honest, agenda-free ${category} recommendation engine with no commercial agenda.
 
@@ -98,10 +105,10 @@ ${itemLines}
 
 Rating key: loved = adored it, liked = enjoyed it, meh = didn't connect, abandoned = couldn't finish, unrated = no opinion.
 
-These books have already been recommended and must NOT be suggested again:
-${excludeLines}
+CRITICAL — the following titles are FORBIDDEN. Do not suggest any of them under any circumstances, even if they seem like a perfect fit:
+${forbiddenLines}
 
-Recommend exactly ONE new ${category} this person hasn't seen yet that fits their taste.
+Recommend exactly ONE ${category} that is NOT on the forbidden list above and fits this person's taste.
 
 Respond ONLY with valid JSON — no markdown, no explanation, no code fences. Use exactly this shape:
 
@@ -116,7 +123,7 @@ Respond ONLY with valid JSON — no markdown, no explanation, no code fences. Us
 
 Rules:
 - match_score must be a number between 60 and 99
-- Do not suggest anything from either the read list or the already-recommended list
+- The title MUST NOT appear in the forbidden list above — double-check before responding
 - Do not include any text outside the JSON object`;
 }
 

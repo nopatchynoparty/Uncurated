@@ -23,6 +23,7 @@ interface ApiResponse {
 const items: Item[] = [];
 let currentRecs: Recommendation[] = [];
 let currentTasteProfile = "";
+const seenTitles = new Set<string>();
 
 const itemInput = document.getElementById("item-input") as HTMLInputElement;
 const addBtn = document.getElementById("add-btn") as HTMLButtonElement;
@@ -138,6 +139,8 @@ function renderRecCard(rec: Recommendation): HTMLElement {
 function renderResults(data: ApiResponse): void {
   currentTasteProfile = data.taste_profile;
   currentRecs = [...(data.recommendations || [])];
+  seenTitles.clear();
+  currentRecs.forEach((r) => seenTitles.add(r.title.toLowerCase()));
 
   tasteProfileText.textContent = currentTasteProfile;
   recsList.innerHTML = "";
@@ -153,7 +156,10 @@ async function replaceRec(cardEl: HTMLElement, oldTitle: string): Promise<void> 
   readBtn.textContent = "Finding…";
   cardEl.classList.add("replacing");
 
-  const excludeTitles = currentRecs.map((r) => r.title);
+  const excludeTitles = [
+    ...Array.from(seenTitles),
+    ...items.map((i) => i.name.toLowerCase()),
+  ];
   const payload = items.map((i) => ({ name: i.name, rating: i.rating || "unrated" }));
 
   try {
@@ -176,6 +182,7 @@ async function replaceRec(cardEl: HTMLElement, oldTitle: string): Promise<void> 
       recommendation: Recommendation;
     };
 
+    seenTitles.add(recommendation.title.toLowerCase());
     const idx = currentRecs.findIndex((r) => r.title === oldTitle);
     if (idx !== -1) currentRecs[idx] = recommendation;
 
