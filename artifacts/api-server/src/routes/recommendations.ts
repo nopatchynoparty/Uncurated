@@ -89,10 +89,7 @@ function buildReplacePrompt(
 ): string {
   const itemLines = items.map((i) => `- "${i.name}" (${i.rating})`).join("\n");
 
-  const allForbidden = [
-    ...items.map((i) => i.name),
-    ...exclude,
-  ];
+  const allForbidden = [...items.map((i) => i.name), ...exclude];
   const forbiddenLines = [...new Set(allForbidden.map((t) => t.toLowerCase()))]
     .map((t) => `- "${t}"`)
     .join("\n");
@@ -187,7 +184,11 @@ router.post("/recommendations/replace", async (req, res) => {
     return;
   }
 
-  const { items, exclude = [], category = "books" } = req.body as ReplaceRequest;
+  const {
+    items,
+    exclude = [],
+    category = "books",
+  } = req.body as ReplaceRequest;
 
   if (!Array.isArray(items) || items.length === 0) {
     res.status(400).json({ error: "Please provide at least one item." });
