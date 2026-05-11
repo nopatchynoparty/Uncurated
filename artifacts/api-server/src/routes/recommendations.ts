@@ -36,13 +36,20 @@ interface RecommendationResponse {
 
 const CLAUDE_TIMEOUT_MS = 30_000;
 
+const AFFILIATE_TAG = "uncuratedapp-21";
+
 function isSafeAmazonUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
+    const validHosts = [
+      "www.amazon.co.uk",
+      "amazon.co.uk",
+      "www.amazon.com",
+      "amazon.com",
+    ];
     return (
       parsed.protocol === "https:" &&
-      (parsed.hostname === "www.amazon.com" ||
-        parsed.hostname === "amazon.com") &&
+      validHosts.includes(parsed.hostname) &&
       parsed.pathname === "/s"
     );
   } catch {
@@ -50,9 +57,17 @@ function isSafeAmazonUrl(url: string): boolean {
   }
 }
 
+function addAffiliateTag(url: string): string {
+  const parsed = new URL(url);
+  parsed.searchParams.set("tag", AFFILIATE_TAG);
+  return parsed.toString();
+}
+
 function sanitizeAmazonUrl(url: string, title: string, author: string): string {
-  if (isSafeAmazonUrl(url)) return url;
-  return `https://www.amazon.com/s?k=${encodeURIComponent(`${title} ${author}`)}`;
+  const base = isSafeAmazonUrl(url)
+    ? url
+    : `https://www.amazon.co.uk/s?k=${encodeURIComponent(`${title} ${author}`)}`;
+  return addAffiliateTag(base);
 }
 
 function parseClaudeJson<T>(raw: string): T {
@@ -92,7 +107,7 @@ Respond ONLY with valid JSON. Your response must begin with { and end with }. Do
       "match_score": 87,
       "why": "One or two sentences explaining why this fits their specific taste based on what they loved and did not love.",
       "vibe": "A short evocative phrase (e.g. slow-burn literary fiction or propulsive thriller)",
-      "amazon_search": "https://www.amazon.com/s?k=Book+Title+Author+Name"
+      "amazon_search": "https://www.amazon.co.uk/s?k=Book+Title+Author+Name"
     }
   ]
 }
@@ -100,7 +115,7 @@ Respond ONLY with valid JSON. Your response must begin with { and end with }. Do
 Rules:
 - match_score must be a number between 60 and 99
 - Do not recommend anything the user has already listed
-- amazon_search must be a valid Amazon search URL with the book title and author URL-encoded
+- amazon_search must be a valid Amazon search URL (amazon.co.uk) with the book title and author URL-encoded
 - Your entire response must be valid JSON starting with { and ending with } — nothing else`;
 }
 
@@ -148,7 +163,7 @@ Respond ONLY with valid JSON. Your response must begin with { and end with }. Do
   "match_score": 87,
   "why": "One or two sentences explaining why this fits their specific taste.",
   "vibe": "A short evocative phrase",
-  "amazon_search": "https://www.amazon.com/s?k=Book+Title+Author+Name"
+  "amazon_search": "https://www.amazon.co.uk/s?k=Book+Title+Author+Name"
 }
 
 Rules:
