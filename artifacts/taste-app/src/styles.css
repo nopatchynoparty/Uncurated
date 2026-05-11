@@ -646,6 +646,11 @@ body {
   border-top: 1px solid var(--border);
 }
 
+.footer-link {
+  color: #888888;
+  text-decoration: none;
+}
+
 /* Mobile */
 @media (max-width: 520px) {
   .header {
