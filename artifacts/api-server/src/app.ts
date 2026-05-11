@@ -6,7 +6,6 @@ import path from "path";
 import { fileURLToPath } from "url";
 import router from "./routes";
 import { logger } from "./lib/logger";
-import { requireCallerToken } from "./lib/callerAuth";
 import { concurrencyLimiter } from "./lib/concurrency";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -54,7 +53,7 @@ const tokenLimiter = rateLimit({
   message: { error: "Too many requests. Please wait a moment and try again." },
 });
 
-app.use("/api/recommendations", recommendationsLimiter, requireCallerToken, concurrencyLimiter);
+app.use("/api/recommendations", recommendationsLimiter, concurrencyLimiter);
 app.use("/api/token", tokenLimiter);
 app.use("/api", router);
 

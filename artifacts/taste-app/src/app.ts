@@ -47,12 +47,6 @@ function generateId(): string {
   return Math.random().toString(36).slice(2, 9);
 }
 
-async function getCallerToken(): Promise<string> {
-  const res = await fetch("/api/token");
-  if (!res.ok) throw new Error("Failed to start session. Please refresh and try again.");
-  const { token } = (await res.json()) as { token: string };
-  return token;
-}
 
 function addItem(name: string): void {
   const trimmed = name.trim();
@@ -173,10 +167,9 @@ async function replaceRec(cardEl: HTMLElement, oldTitle: string): Promise<void> 
   const payload = items.map((i) => ({ name: i.name, rating: i.rating || "unrated" }));
 
   try {
-    const token = await getCallerToken();
     const res = await fetch("/api/recommendations/replace", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Caller-Token": token },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         items: payload,
         exclude: excludeTitles,
@@ -256,10 +249,9 @@ async function fetchRecommendations(): Promise<void> {
   document.querySelector(".error-banner")?.remove();
 
   try {
-    const token = await getCallerToken();
     const res = await fetch("/api/recommendations", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Caller-Token": token },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ items: payload, category: "books" }),
     });
 
