@@ -34,6 +34,27 @@ interface RecommendationResponse {
   recommendations: Recommendation[];
 }
 
+const CLAUDE_TIMEOUT_MS = 30_000;
+
+function isSafeAmazonUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return (
+      parsed.protocol === "https:" &&
+      (parsed.hostname === "www.amazon.com" ||
+        parsed.hostname === "amazon.com") &&
+      parsed.pathname === "/s"
+    );
+  } catch {
+    return false;
+  }
+}
+
+function sanitizeAmazonUrl(url: string, title: string, author: string): string {
+  if (isSafeAmazonUrl(url)) return url;
+  return `https://www.amazon.com/s?k=${encodeURIComponent(`${title} ${author}`)}`;
+}
+
 function parseClaudeJson<T>(raw: string): T {
   const cleaned = raw
     .replace(/^```(?:json)?\s*/i, "")
@@ -149,15 +170,30 @@ router.post("/recommendations", async (req, res) => {
     res.status(400).json({ error: "Please provide at least one item." });
     return;
   }
+  if (items.length > 100) {
+    res.status(400).json({ error: "Too many items. Please provide at most 100." });
+    return;
+  }
+  if (items.some((i) => typeof i.name !== "string" || i.name.length > 200)) {
+    res.status(400).json({ error: "Each item name must be 200 characters or fewer." });
+    return;
+  }
 
   const client = new Anthropic({ apiKey });
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(), CLAUDE_TIMEOUT_MS);
 
   try {
-    const message = await client.messages.create({
-      model: "claude-sonnet-4-5",
-      max_tokens: 2048,
-      messages: [{ role: "user", content: buildPrompt(items, category) }],
-    });
+    const message = await client.messages.create(
+      {
+        model: "claude-sonnet-4-5",
+        max_tokens: 2048,
+        messages: [{ role: "user", content: buildPrompt(items, category) }],
+      },
+      { signal: abort.signal },
+    );
+
+    clearTimeout(timer);
 
     const raw =
       message.content[0].type === "text" ? message.content[0].text : "";
@@ -180,8 +216,18 @@ router.post("/recommendations", async (req, res) => {
       return;
     }
 
+    parsed.recommendations = parsed.recommendations.map((rec) => ({
+      ...rec,
+      amazon_search: sanitizeAmazonUrl(
+        rec.amazon_search,
+        rec.title,
+        rec.author,
+      ),
+    }));
+
     res.json(parsed);
   } catch (err: unknown) {
+    clearTimeout(timer);
     req.log.error({ err }, "Claude API error");
     const message =
       err instanceof Error ? err.message : "Unknown error from AI service.";
@@ -207,20 +253,40 @@ router.post("/recommendations/replace", async (req, res) => {
     res.status(400).json({ error: "Please provide at least one item." });
     return;
   }
+  if (items.length > 100) {
+    res.status(400).json({ error: "Too many items. Please provide at most 100." });
+    return;
+  }
+  if (items.some((i) => typeof i.name !== "string" || i.name.length > 200)) {
+    res.status(400).json({ error: "Each item name must be 200 characters or fewer." });
+    return;
+  }
 
   const client = new Anthropic({ apiKey });
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(), CLAUDE_TIMEOUT_MS);
 
   try {
-    const message = await client.messages.create({
-      model: "claude-sonnet-4-5",
-      max_tokens: 512,
-      messages: [
-        {
-          role: "user",
-          content: buildReplacePrompt(items, exclude, currentlyShown, category),
-        },
-      ],
-    });
+    const message = await client.messages.create(
+      {
+        model: "claude-sonnet-4-5",
+        max_tokens: 512,
+        messages: [
+          {
+            role: "user",
+            content: buildReplacePrompt(
+              items,
+              exclude,
+              currentlyShown,
+              category,
+            ),
+          },
+        ],
+      },
+      { signal: abort.signal },
+    );
+
+    clearTimeout(timer);
 
     const raw =
       message.content[0].type === "text" ? message.content[0].text : "";
@@ -243,8 +309,15 @@ router.post("/recommendations/replace", async (req, res) => {
       return;
     }
 
+    rec.amazon_search = sanitizeAmazonUrl(
+      rec.amazon_search,
+      rec.title,
+      rec.author,
+    );
+
     res.json({ recommendation: rec });
   } catch (err: unknown) {
+    clearTimeout(timer);
     req.log.error({ err }, "Claude API replace error");
     const message =
       err instanceof Error ? err.message : "Unknown error from AI service.";

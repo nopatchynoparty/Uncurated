@@ -85,7 +85,17 @@
       clone.querySelector('.rec-why').textContent = rec.why;
       clone.querySelector('.rec-vibe').textContent = rec.vibe || '';
       const link = clone.querySelector('.rec-link');
-      link.href = rec.amazon_search || `https://www.amazon.com/s?k=${encodeURIComponent(rec.title + ' ' + (rec.author || ''))}`;
+      const fallback = `https://www.amazon.com/s?k=${encodeURIComponent(rec.title + ' ' + (rec.author || ''))}`;
+      try {
+        const parsed = new URL(rec.amazon_search || '');
+        const safe =
+          parsed.protocol === 'https:' &&
+          (parsed.hostname === 'www.amazon.com' || parsed.hostname === 'amazon.com') &&
+          parsed.pathname === '/s';
+        link.href = safe ? rec.amazon_search : fallback;
+      } catch {
+        link.href = fallback;
+      }
       recsList.appendChild(clone);
     });
 
@@ -103,6 +113,13 @@
     setTimeout(() => el.remove(), 8000);
   }
 
+  async function getCallerToken() {
+    const res = await fetch('/api/token');
+    if (!res.ok) throw new Error('Could not obtain session token.');
+    const data = await res.json();
+    return data.token;
+  }
+
   async function fetchRecommendations() {
     const payload = items.map(i => ({ name: i.name, rating: i.rating || 'unrated' }));
 
@@ -115,9 +132,10 @@
     if (existing) existing.remove();
 
     try {
+      const token = await getCallerToken();
       const res = await fetch('/api/recommendations', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Caller-Token': token },
         body: JSON.stringify({ items: payload, category: 'books' }),
       });
 
