@@ -37,7 +37,7 @@ interface RecommendationResponse {
 
 const CLAUDE_TIMEOUT_MS = 30_000;
 
-const AFFILIATE_TAG = "uncuratedapp-21";
+const AFFILIATE_TAG = "uncuratedapp-20";
 
 function isSafeAmazonUrl(url: string): boolean {
   try {

@@ -1,6 +1,6 @@
 kind = "web"
 previewPath = "/"
-title = "Taste"
+title = "Uncurated"
 version = "1.0.0"
 id = "artifacts/taste-app"
 router = "path"
