@@ -1,0 +1,36 @@
+# Usage:
+#   1. Create a .env file in this directory with CLAUDE_API_KEY=sk-ant-...
+#   2. docker compose up --build   (first run, ~2-3 min to install deps)
+#   3. docker compose up           (subsequent runs, uses cached image)
+#   4. Open http://localhost:5173
+#
+# Frontend hot-reloads on source changes.
+# Backend changes require: docker compose restart api
+
+services:
+  api:
+    build: .
+    command: pnpm --filter @workspace/api-server run dev
+    ports:
+      - "8080:8080"
+    environment:
+      CLAUDE_API_KEY: ${CLAUDE_API_KEY}
+      NODE_ENV: development
+    volumes:
+      - ./artifacts/api-server/src:/app/artifacts/api-server/src
+
+  web:
+    build: .
+    command: pnpm --filter @workspace/taste-app run dev
+    ports:
+      - "5173:5173"
+    environment:
+      PORT: "5173"
+      BASE_PATH: /
+      API_URL: http://api:8080
+      DOCKER: "true"
+    volumes:
+      - ./artifacts/taste-app/src:/app/artifacts/taste-app/src
+      - ./artifacts/taste-app/index.html:/app/artifacts/taste-app/index.html
+    depends_on:
+      - api

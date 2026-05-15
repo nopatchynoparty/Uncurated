@@ -51,10 +51,11 @@ export default defineConfig({
     },
     proxy: {
       "/api": {
-        target: "http://localhost:8080",
+        target: process.env["API_URL"] ?? "http://localhost:8080",
         changeOrigin: true,
       },
     },
+    watch: process.env["DOCKER"] ? { usePolling: true } : undefined,
   },
   preview: {
     port,
