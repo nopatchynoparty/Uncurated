@@ -76,15 +76,15 @@ function sanitizePodcastUrl(url: string, title: string): string {
     const parsed = new URL(url);
     if (
       parsed.protocol === "https:" &&
-      parsed.hostname === "podcasts.apple.com" &&
-      parsed.pathname === "/search"
+      parsed.hostname === "open.spotify.com" &&
+      parsed.pathname.startsWith("/search/")
     ) {
       return url;
     }
   } catch {
     // fall through to default
   }
-  return `https://podcasts.apple.com/search?term=${encodeURIComponent(title)}`;
+  return `https://open.spotify.com/search/${encodeURIComponent(title)}`;
 }
 
 function parseClaudeJson<T>(raw: string): T {
@@ -126,7 +126,7 @@ Respond ONLY with valid JSON. Your response must begin with { and end with }. Do
       "match_score": 87,
       "why": "One or two sentences explaining why this fits their specific taste based on what they loved and did not love.",
       "vibe": "A short evocative phrase (e.g. deep-dive investigative journalism or breezy science storytelling)",
-      "amazon_search": "https://podcasts.apple.com/search?term=Podcast+Title"
+      "amazon_search": "https://open.spotify.com/search/Podcast%20Title"
     }
   ]
 }
@@ -134,7 +134,7 @@ Respond ONLY with valid JSON. Your response must begin with { and end with }. Do
 Rules:
 - match_score must be a number between 60 and 99
 - Do not recommend anything the user has already listed
-- amazon_search must be a valid Apple Podcasts search URL (podcasts.apple.com/search) with the podcast title URL-encoded in the term parameter
+- amazon_search must be a valid Spotify search URL in the format https://open.spotify.com/search/Podcast%20Title with the podcast title URL-encoded in the path
 - Your entire response must be valid JSON starting with { and ending with } — nothing else`;
   }
 
@@ -206,10 +206,10 @@ function buildReplacePrompt(
   const creatorLabel = isPodcast ? "Host or Creator Name" : "Author Name";
   const exampleTitle = isPodcast ? "Podcast Title" : "Book Title";
   const searchExample = isPodcast
-    ? `"amazon_search": "https://podcasts.apple.com/search?term=Podcast+Title"`
+    ? `"amazon_search": "https://open.spotify.com/search/Podcast%20Title"`
     : `"amazon_search": "https://www.amazon.co.uk/s?k=Book+Title+Author+Name"`;
   const searchRule = isPodcast
-    ? "amazon_search must be a valid Apple Podcasts search URL (podcasts.apple.com/search) with the podcast title URL-encoded"
+    ? "amazon_search must be a valid Spotify search URL in the format https://open.spotify.com/search/Podcast%20Title with the podcast title URL-encoded in the path"
     : "amazon_search must be a valid Amazon search URL (amazon.co.uk) with the book title and author URL-encoded";
   const checkWord = isPodcast ? "podcast" : "book";
 

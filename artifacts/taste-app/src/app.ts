@@ -50,7 +50,7 @@ const CATEGORY_CONFIG: Record<Category, {
     label: "What podcasts have you loved?",
     placeholder: "e.g. Serial, Hardcore History, Radiolab…",
     dismissBtn: "I've listened to this",
-    linkText: "Find on Apple Podcasts →",
+    linkText: "Find on Spotify →",
     sharePrefix: "My listener profile:",
     shareByWord: "hosted by",
     minError: "Add at least 3 podcasts to get a good recommendation.",
@@ -180,7 +180,9 @@ function fillRecCard(li: HTMLElement, rec: Recommendation): void {
   link.textContent = CATEGORY_CONFIG[activeCategory].linkText;
   link.href =
     rec.amazon_search ||
-    `https://www.amazon.com/s?k=${encodeURIComponent(rec.title + " " + (rec.author || ""))}`;
+    (activeCategory === "podcasts"
+      ? `https://open.spotify.com/search/${encodeURIComponent(rec.title)}`
+      : `https://www.amazon.co.uk/s?k=${encodeURIComponent(rec.title + " " + (rec.author || ""))}&tag=uncuratedapp-20`);
 }
 
 function showDismissReasons(cardEl: HTMLElement): void {
