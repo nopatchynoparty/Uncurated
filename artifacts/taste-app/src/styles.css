@@ -89,8 +89,8 @@ body {
 .logo-un {
   text-decoration: line-through;
   text-decoration-thickness: 1.5px;
-  text-decoration-color: var(--text-muted);
-  opacity: 0.45;
+  text-decoration-color: var(--accent);
+  opacity: 1;
 }
 
 .tagline {
