@@ -15,6 +15,6 @@ COPY lib/db/package.json                 ./lib/db/
 COPY scripts/package.json                ./scripts/
 
 # Install on Linux — no ARM64 binary issues
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 
 COPY . .
