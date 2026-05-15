@@ -90,7 +90,7 @@ body {
   text-decoration: line-through;
   text-decoration-thickness: 1.5px;
   text-decoration-color: var(--accent);
-  opacity: 1;
+  color: var(--text-muted);
 }
 
 .tagline {
