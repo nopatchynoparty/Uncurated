@@ -20,10 +20,42 @@ interface ApiResponse {
   recommendations: Recommendation[];
 }
 
+type Category = "books" | "podcasts";
+
+let activeCategory: Category = "books";
 const items: Item[] = [];
 let currentRecs: Recommendation[] = [];
 let currentTasteProfile = "";
 const seenTitles = new Set<string>();
+
+const CATEGORY_CONFIG: Record<Category, {
+  label: string;
+  placeholder: string;
+  dismissBtn: string;
+  linkText: string;
+  sharePrefix: string;
+  shareByWord: string;
+  minError: string;
+}> = {
+  books: {
+    label: "What books have you read?",
+    placeholder: "e.g. The Road, Sapiens, Dune…",
+    dismissBtn: "I've read this",
+    linkText: "Find on Amazon →",
+    sharePrefix: "My reader profile:",
+    shareByWord: "by",
+    minError: "Add at least 3 books to get a good recommendation.",
+  },
+  podcasts: {
+    label: "What podcasts have you loved?",
+    placeholder: "e.g. Serial, Hardcore History, Radiolab…",
+    dismissBtn: "I've listened to this",
+    linkText: "Find on Apple Podcasts →",
+    sharePrefix: "My listener profile:",
+    shareByWord: "hosted by",
+    minError: "Add at least 3 podcasts to get a good recommendation.",
+  },
+};
 
 const itemInput = document.getElementById("item-input") as HTMLInputElement;
 const addBtn = document.getElementById("add-btn") as HTMLButtonElement;
@@ -42,11 +74,36 @@ const itemTemplate = document.getElementById("item-template") as HTMLTemplateEle
 const recTemplate = document.getElementById("rec-template") as HTMLTemplateElement;
 const importBtn = document.getElementById("import-btn") as HTMLButtonElement;
 const csvFileInput = document.getElementById("csv-file-input") as HTMLInputElement;
+const inputLabel = document.querySelector(".input-label") as HTMLLabelElement;
 
 function generateId(): string {
   return Math.random().toString(36).slice(2, 9);
 }
 
+function switchCategory(cat: Category): void {
+  if (cat === activeCategory) return;
+  activeCategory = cat;
+
+  document.querySelectorAll<HTMLButtonElement>(".category-btn[data-category]").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.category === cat);
+  });
+
+  items.length = 0;
+  itemsList.innerHTML = "";
+  itemsSection.style.display = "none";
+  ctaRow.style.display = "none";
+  resultsSection.style.display = "none";
+  currentRecs = [];
+  currentTasteProfile = "";
+  seenTitles.clear();
+  document.querySelector(".error-banner")?.remove();
+
+  const config = CATEGORY_CONFIG[cat];
+  inputLabel.textContent = config.label;
+  itemInput.placeholder = config.placeholder;
+
+  importBtn.style.display = cat === "books" ? "inline-flex" : "none";
+}
 
 function addItem(name: string): void {
   const trimmed = name.trim();
@@ -120,19 +177,50 @@ function fillRecCard(li: HTMLElement, rec: Recommendation): void {
   (li.querySelector(".rec-why") as HTMLElement).textContent = rec.why;
   (li.querySelector(".rec-vibe") as HTMLElement).textContent = rec.vibe || "";
   const link = li.querySelector(".rec-link") as HTMLAnchorElement;
+  link.textContent = CATEGORY_CONFIG[activeCategory].linkText;
   link.href =
     rec.amazon_search ||
     `https://www.amazon.com/s?k=${encodeURIComponent(rec.title + " " + (rec.author || ""))}`;
+}
+
+function showDismissReasons(cardEl: HTMLElement): void {
+  (cardEl.querySelector(".rec-footer") as HTMLElement).style.display = "none";
+  (cardEl.querySelector(".dismiss-reasons") as HTMLElement).style.display = "flex";
+}
+
+function hideDismissReasons(cardEl: HTMLElement): void {
+  (cardEl.querySelector(".dismiss-reasons") as HTMLElement).style.display = "none";
+  (cardEl.querySelector(".rec-footer") as HTMLElement).style.display = "flex";
+}
+
+function bindCardButtons(cardEl: HTMLElement, rec: Recommendation): void {
+  const readBtn = cardEl.querySelector(".read-this-btn") as HTMLButtonElement;
+  const config = CATEGORY_CONFIG[activeCategory];
+  readBtn.textContent = config.dismissBtn;
+  readBtn.disabled = false;
+
+  if (activeCategory === "podcasts") {
+    readBtn.onclick = () => showDismissReasons(cardEl);
+    cardEl.querySelectorAll<HTMLButtonElement>(".dismiss-reason-btn").forEach((btn) => {
+      btn.onclick = () => {
+        const reason = btn.dataset.reason!;
+        hideDismissReasons(cardEl);
+        replaceRec(cardEl, rec.title, reason);
+      };
+    });
+    (cardEl.querySelector(".dismiss-cancel-btn") as HTMLButtonElement).onclick = () => {
+      hideDismissReasons(cardEl);
+    };
+  } else {
+    readBtn.onclick = () => replaceRec(cardEl, rec.title);
+  }
 }
 
 function renderRecCard(rec: Recommendation): HTMLElement {
   const clone = recTemplate.content.cloneNode(true) as DocumentFragment;
   const li = clone.querySelector(".rec-card") as HTMLElement;
   fillRecCard(li, rec);
-
-  const readBtn = li.querySelector(".read-this-btn") as HTMLButtonElement;
-  readBtn.addEventListener("click", () => replaceRec(li, rec.title));
-
+  bindCardButtons(li, rec);
   recsList.appendChild(clone);
   return li;
 }
@@ -151,7 +239,11 @@ function renderResults(data: ApiResponse): void {
   resultsSection.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-async function replaceRec(cardEl: HTMLElement, oldTitle: string): Promise<void> {
+async function replaceRec(
+  cardEl: HTMLElement,
+  oldTitle: string,
+  dismissReason?: string,
+): Promise<void> {
   const readBtn = cardEl.querySelector(".read-this-btn") as HTMLButtonElement;
   readBtn.disabled = true;
   readBtn.textContent = "Finding…";
@@ -174,7 +266,8 @@ async function replaceRec(cardEl: HTMLElement, oldTitle: string): Promise<void> 
         items: payload,
         exclude: excludeTitles,
         currentlyShown,
-        category: "books",
+        category: activeCategory,
+        dismissReason,
       }),
     });
 
@@ -195,17 +288,18 @@ async function replaceRec(cardEl: HTMLElement, oldTitle: string): Promise<void> 
     await new Promise((r) => setTimeout(r, 200));
 
     fillRecCard(cardEl, recommendation);
-    readBtn.disabled = false;
-    readBtn.textContent = "I've read this";
-    readBtn.addEventListener("click", () =>
-      replaceRec(cardEl, recommendation.title),
-    );
+    bindCardButtons(cardEl, recommendation);
     cardEl.classList.remove("replacing", "fade-out");
     cardEl.classList.add("fade-in");
     setTimeout(() => cardEl.classList.remove("fade-in"), 400);
   } catch (err: unknown) {
     readBtn.disabled = false;
-    readBtn.textContent = "Try again";
+    readBtn.textContent = CATEGORY_CONFIG[activeCategory].dismissBtn;
+    if (activeCategory === "podcasts") {
+      readBtn.onclick = () => showDismissReasons(cardEl);
+    } else {
+      readBtn.onclick = () => replaceRec(cardEl, oldTitle);
+    }
     cardEl.classList.remove("replacing");
     const msg =
       err instanceof Error ? err.message : "Something went wrong.";
@@ -235,7 +329,7 @@ function showError(msg: string): void {
 
 async function fetchRecommendations(): Promise<void> {
   if (items.length < 3) {
-    showError("Add at least 3 books to get a good recommendation.");
+    showError(CATEGORY_CONFIG[activeCategory].minError);
     return;
   }
 
@@ -252,7 +346,7 @@ async function fetchRecommendations(): Promise<void> {
     const res = await fetch("/api/recommendations", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items: payload, category: "books" }),
+      body: JSON.stringify({ items: payload, category: activeCategory }),
     });
 
     if (!res.ok) {
@@ -280,9 +374,10 @@ function buildShareText(): string {
     typeof top.match_score === "number"
       ? `${Math.round(top.match_score)}%`
       : String(top.match_score);
+  const config = CATEGORY_CONFIG[activeCategory];
   return (
-    `My reader profile: ${currentTasteProfile}\n\n` +
-    `Top match: ${top.title} by ${top.author} (${score} match) — ${top.vibe}\n\n` +
+    `${config.sharePrefix} ${currentTasteProfile}\n\n` +
+    `Top match: ${top.title} ${config.shareByWord} ${top.author} (${score} match) — ${top.vibe}\n\n` +
     `via Uncurated`
   );
 }
@@ -338,7 +433,6 @@ function parseGoodreadsCSV(text: string): void {
 
   const headers = parseCSVLine(lines[0]).map((h) => h.trim().toLowerCase());
   const titleIdx = headers.findIndex((h) => h === "title");
-  const authorIdx = headers.findIndex((h) => h === "author");
   const ratingIdx = headers.findIndex((h) => h === "my rating");
   const shelfIdx = headers.findIndex((h) => h === "exclusive shelf");
 
@@ -372,7 +466,6 @@ function parseGoodreadsCSV(text: string): void {
     else unrated.push({ title, rating: null });
   }
 
-  // Prioritise rated books; fill remaining slots with unrated up to 500 total
   const CAP = 500;
   const toAdd = [...rated, ...unrated].slice(0, CAP);
 
@@ -409,6 +502,14 @@ csvFileInput.addEventListener("change", () => {
     csvFileInput.value = "";
   };
   reader.readAsText(file);
+});
+
+// ── Event listeners ───────────────────────────────────────────────────────────
+
+document.querySelectorAll<HTMLButtonElement>(".category-btn[data-category]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    switchCategory(btn.dataset.category as Category);
+  });
 });
 
 itemInput.addEventListener("keydown", (e) => {

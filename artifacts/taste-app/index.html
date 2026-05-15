@@ -29,7 +29,7 @@
       <main class="main">
         <section class="categories">
           <button class="category-btn active" data-category="books">Books</button>
-          <button class="category-btn coming-soon" disabled>Podcasts <span class="badge">Soon</span></button>
+          <button class="category-btn" data-category="podcasts">Podcasts</button>
           <button class="category-btn coming-soon" disabled>TV <span class="badge">Soon</span></button>
           <button class="category-btn coming-soon" disabled>Music <span class="badge">Soon</span></button>
         </section>
@@ -123,6 +123,16 @@
             <button class="read-this-btn" type="button">I've read this</button>
             <a class="rec-link" target="_blank" rel="noopener noreferrer">Find on Amazon →</a>
           </div>
+        </div>
+        <div class="dismiss-reasons" style="display:none">
+          <span class="dismiss-prompt">Why skip this?</span>
+          <div class="dismiss-reason-btns">
+            <button class="dismiss-reason-btn" type="button" data-reason="Already listen to it">Already listen to it</button>
+            <button class="dismiss-reason-btn" type="button" data-reason="Not my kind of host">Not my kind of host</button>
+            <button class="dismiss-reason-btn" type="button" data-reason="Too mainstream">Too mainstream</button>
+            <button class="dismiss-reason-btn" type="button" data-reason="Not interested in the topic">Not interested in the topic</button>
+          </div>
+          <button class="dismiss-cancel-btn" type="button">Cancel</button>
         </div>
       </li>
     </template>

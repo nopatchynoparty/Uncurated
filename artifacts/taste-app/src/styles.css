@@ -623,6 +623,65 @@ body {
   text-decoration: underline;
 }
 
+/* Dismiss reasons */
+.dismiss-reasons {
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  animation: fadeIn 0.15s ease-out;
+}
+
+.dismiss-prompt {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.dismiss-reason-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.dismiss-reason-btn {
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s;
+  font-family: var(--font);
+}
+
+.dismiss-reason-btn:hover {
+  border-color: var(--accent);
+  color: var(--text);
+  background: var(--surface);
+}
+
+.dismiss-cancel-btn {
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  font-family: var(--font);
+  transition: color 0.12s;
+  align-self: flex-start;
+}
+
+.dismiss-cancel-btn:hover {
+  color: var(--text-muted);
+  text-decoration: underline;
+}
+
 /* Errors */
 .error-banner {
   background: rgba(248, 113, 113, 0.1);

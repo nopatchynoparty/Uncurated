@@ -18,6 +18,7 @@ interface ReplaceRequest {
   exclude: string[];
   currentlyShown: string[];
   category: string;
+  dismissReason?: string;
 }
 
 interface Recommendation {
@@ -70,6 +71,22 @@ function sanitizeAmazonUrl(url: string, title: string, author: string): string {
   return addAffiliateTag(base);
 }
 
+function sanitizePodcastUrl(url: string, title: string): string {
+  try {
+    const parsed = new URL(url);
+    if (
+      parsed.protocol === "https:" &&
+      parsed.hostname === "podcasts.apple.com" &&
+      parsed.pathname === "/search"
+    ) {
+      return url;
+    }
+  } catch {
+    // fall through to default
+  }
+  return `https://podcasts.apple.com/search?term=${encodeURIComponent(title)}`;
+}
+
 function parseClaudeJson<T>(raw: string): T {
   const cleaned = raw
     .replace(/^```(?:json)?\s*/i, "")
@@ -81,9 +98,49 @@ function parseClaudeJson<T>(raw: string): T {
 function buildPrompt(items: RatedItem[], category: string): string {
   const itemLines = items.map((i) => `- "${i.name}" (${i.rating})`).join("\n");
 
-  return `You are an honest, agenda-free ${category} recommendation engine. You have no commercial affiliations, no sponsored content, and no hidden agenda. Your only goal is to understand someone's taste and give them genuinely useful recommendations.
+  if (category === "podcasts") {
+    return `You are an honest, agenda-free podcast recommendation engine. You have no commercial affiliations, no sponsored content, and no hidden agenda. Your only goal is to understand someone's taste and give them genuinely useful podcast recommendations.
 
-Here are the ${category} this person has read, along with their ratings:
+Here are the podcasts this person has listened to, along with their ratings:
+
+${itemLines}
+
+Rating key:
+- loved: they adored it
+- liked: they enjoyed it
+- meh: it didn't connect with them
+- abandoned: they couldn't finish it (DNF)
+- hated: they finished it but strongly disliked it
+- unrated: no opinion provided
+
+Based on these ratings, analyze their listening taste and recommend 5 podcasts they are very likely to love.
+
+Respond ONLY with valid JSON. Your response must begin with { and end with }. Do not use backticks, markdown, code fences, or any text outside the JSON object. Use exactly this shape:
+
+{
+  "taste_profile": "A 2-3 sentence honest description of their listening taste and what makes them tick as a listener.",
+  "recommendations": [
+    {
+      "title": "Podcast Title",
+      "author": "Host or Creator Name",
+      "match_score": 87,
+      "why": "One or two sentences explaining why this fits their specific taste based on what they loved and did not love.",
+      "vibe": "A short evocative phrase (e.g. deep-dive investigative journalism or breezy science storytelling)",
+      "amazon_search": "https://podcasts.apple.com/search?term=Podcast+Title"
+    }
+  ]
+}
+
+Rules:
+- match_score must be a number between 60 and 99
+- Do not recommend anything the user has already listed
+- amazon_search must be a valid Apple Podcasts search URL (podcasts.apple.com/search) with the podcast title URL-encoded in the term parameter
+- Your entire response must be valid JSON starting with { and ending with } — nothing else`;
+  }
+
+  return `You are an honest, agenda-free books recommendation engine. You have no commercial affiliations, no sponsored content, and no hidden agenda. Your only goal is to understand someone's taste and give them genuinely useful recommendations.
+
+Here are the books this person has read, along with their ratings:
 
 ${itemLines}
 
@@ -95,7 +152,7 @@ Rating key:
 - hated: they finished it but strongly disliked it
 - unrated: no opinion provided
 
-Based on these ratings, analyze their taste and recommend 5 ${category} they are very likely to love.
+Based on these ratings, analyze their taste and recommend 5 books they are very likely to love.
 
 Respond ONLY with valid JSON. Your response must begin with { and end with }. Do not use backticks, markdown, code fences, or any text outside the JSON object. Use exactly this shape:
 
@@ -125,7 +182,9 @@ function buildReplacePrompt(
   exclude: string[],
   currentlyShown: string[],
   category: string,
+  dismissReason?: string,
 ): string {
+  const isPodcast = category === "podcasts";
   const itemLines = items.map((i) => `- "${i.name}" (${i.rating})`).join("\n");
 
   const allForbidden = [...items.map((i) => i.name), ...exclude];
@@ -138,38 +197,55 @@ function buildReplacePrompt(
       ? currentlyShown.map((t) => `- "${t}"`).join("\n")
       : "(none)";
 
-  return `You are an honest, agenda-free ${category} recommendation engine with no commercial agenda.
+  const dismissContext = dismissReason
+    ? `\nThe user passed on the previous recommendation because: "${dismissReason}". Use this to find a better fit — if they said "Already listen to it", they know the space and want something more niche; if "Not my kind of host", avoid similar presenting styles or formats; if "Too mainstream", lean toward under-the-radar picks; if "Not interested in the topic", steer clear of that subject area entirely.\n`
+    : "";
 
-Here are the ${category} this person has read, along with their ratings:
+  const verbPast = isPodcast ? "listened to" : "read";
+  const thingLabel = isPodcast ? "podcasts" : "books";
+  const creatorLabel = isPodcast ? "Host or Creator Name" : "Author Name";
+  const exampleTitle = isPodcast ? "Podcast Title" : "Book Title";
+  const searchExample = isPodcast
+    ? `"amazon_search": "https://podcasts.apple.com/search?term=Podcast+Title"`
+    : `"amazon_search": "https://www.amazon.co.uk/s?k=Book+Title+Author+Name"`;
+  const searchRule = isPodcast
+    ? "amazon_search must be a valid Apple Podcasts search URL (podcasts.apple.com/search) with the podcast title URL-encoded"
+    : "amazon_search must be a valid Amazon search URL (amazon.co.uk) with the book title and author URL-encoded";
+  const checkWord = isPodcast ? "podcast" : "book";
+
+  return `You are an honest, agenda-free ${thingLabel} recommendation engine with no commercial agenda.
+
+Here are the ${thingLabel} this person has ${verbPast}, along with their ratings:
 
 ${itemLines}
 
 Rating key: loved = adored it, liked = enjoyed it, meh = did not connect, abandoned = could not finish, hated = finished but strongly disliked, unrated = no opinion.
-
-FORBIDDEN TITLES — do not suggest any of these under any circumstances. Treat a title as forbidden if it matches in any form, including with or without a series prefix, subtitle, or punctuation differences (e.g. "Leviathan Wakes" and "The Expanse: Leviathan Wakes" are the same):
+${dismissContext}
+FORBIDDEN TITLES — do not suggest any of these under any circumstances. Treat a title as forbidden if it matches in any form, including with or without a series prefix, subtitle, or punctuation differences:
 ${forbiddenLines}
 
 CURRENTLY SHOWN — these are already visible to the user right now and must also not be suggested:
 ${shownLines}
 
-Recommend exactly ONE ${category} that does not appear in either list above and fits this person's taste.
+Recommend exactly ONE ${thingLabel} that does not appear in either list above and fits this person's taste.
 
-Before responding, silently check your chosen title against every item in both lists above. If there is any match — even a partial or reformatted one — pick a different book. Only respond when you are certain the title is not in either list.
+Before responding, silently check your chosen title against every item in both lists above. If there is any match — even a partial or reformatted one — pick a different ${checkWord}. Only respond when you are certain the title is not in either list.
 
 Respond ONLY with valid JSON. Your response must begin with { and end with }. Do not use backticks, markdown, code fences, or any text outside the JSON object. Use exactly this shape:
 
 {
-  "title": "Book Title",
-  "author": "Author Name",
+  "title": "${exampleTitle}",
+  "author": "${creatorLabel}",
   "match_score": 87,
   "why": "One or two sentences explaining why this fits their specific taste.",
   "vibe": "A short evocative phrase",
-  "amazon_search": "https://www.amazon.co.uk/s?k=Book+Title+Author+Name"
+  ${searchExample}
 }
 
 Rules:
 - match_score must be a number between 60 and 99
 - The title must not appear in either list above in any form
+- ${searchRule}
 - Your entire response must be valid JSON starting with { and ending with } — nothing else`;
 }
 
@@ -234,11 +310,9 @@ router.post("/recommendations", async (req, res) => {
 
     parsed.recommendations = parsed.recommendations.map((rec) => ({
       ...rec,
-      amazon_search: sanitizeAmazonUrl(
-        rec.amazon_search,
-        rec.title,
-        rec.author,
-      ),
+      amazon_search: category === "podcasts"
+        ? sanitizePodcastUrl(rec.amazon_search, rec.title)
+        : sanitizeAmazonUrl(rec.amazon_search, rec.title, rec.author),
     }));
 
     res.json(parsed);
@@ -261,6 +335,7 @@ router.post("/recommendations/replace", async (req, res) => {
     exclude = [],
     currentlyShown = [],
     category = "books",
+    dismissReason,
   } = req.body as ReplaceRequest;
 
   if (!Array.isArray(items) || items.length === 0) {
@@ -293,6 +368,7 @@ router.post("/recommendations/replace", async (req, res) => {
               exclude,
               currentlyShown,
               category,
+              dismissReason,
             ),
           },
         ],
@@ -323,11 +399,9 @@ router.post("/recommendations/replace", async (req, res) => {
       return;
     }
 
-    rec.amazon_search = sanitizeAmazonUrl(
-      rec.amazon_search,
-      rec.title,
-      rec.author,
-    );
+    rec.amazon_search = category === "podcasts"
+      ? sanitizePodcastUrl(rec.amazon_search, rec.title)
+      : sanitizeAmazonUrl(rec.amazon_search, rec.title, rec.author);
 
     res.json({ recommendation: rec });
   } catch (err: unknown) {
