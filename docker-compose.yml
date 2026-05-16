@@ -17,6 +17,7 @@ services:
       CLAUDE_API_KEY: ${CLAUDE_API_KEY}
       SESSION_SECRET: dev-local-secret
       NODE_ENV: development
+      PORT: "8080"
     volumes:
       - ./artifacts/api-server/src:/app/artifacts/api-server/src
 
