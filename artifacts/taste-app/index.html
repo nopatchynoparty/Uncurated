@@ -32,7 +32,7 @@
         <section class="categories">
           <button class="category-btn active" data-category="books">Books</button>
           <button class="category-btn coming-soon" disabled>Podcasts <span class="badge">Soon</span></button>
-          <button class="category-btn coming-soon" disabled>TV <span class="badge">Soon</span></button>
+          <button class="category-btn coming-soon" disabled>Watch <span class="badge">Soon</span></button>
           <button class="category-btn coming-soon" disabled>Music <span class="badge">Soon</span></button>
         </section>
 
@@ -57,6 +57,91 @@
             <button class="add-btn" id="add-btn" aria-label="Add item">+</button>
           </div>
           <p class="input-hint">Press Enter or click + to add. Add at least 3 items for better results.</p>
+        </section>
+
+        <section class="watch-options" id="watch-options" style="display:none">
+          <div class="toggle-group">
+            <span class="toggle-label">Format</span>
+            <div class="toggle-btns">
+              <button class="toggle-btn" data-toggle="format" data-value="series">Series</button>
+              <button class="toggle-btn" data-toggle="format" data-value="films">Films</button>
+              <button class="toggle-btn active" data-toggle="format" data-value="both">Both</button>
+            </div>
+          </div>
+          <div class="toggle-group">
+            <span class="toggle-label">Mood</span>
+            <div class="toggle-btns">
+              <button class="toggle-btn" data-toggle="mood" data-value="light">Light</button>
+              <button class="toggle-btn" data-toggle="mood" data-value="dark">Dark</button>
+              <button class="toggle-btn active" data-toggle="mood" data-value="any">Doesn't matter</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="example-section" id="example-section">
+          <div class="example-label-row">
+            <span class="example-label-tag">Example output</span>
+            <span class="example-input-summary">Harry Potter (loved) · The Da Vinci Code (loved) · Gone Girl (liked) · Twilight (meh)</span>
+          </div>
+
+          <div class="taste-profile-card">
+            <div class="taste-profile-header">
+              <h2 class="taste-profile-title">Your Uncurated Profile</h2>
+            </div>
+            <p class="taste-profile-text">This reader gravitates toward fast-paced, plot-driven narratives with strong hooks and accessible writing. They love stories that blend mystery, intrigue, and page-turning momentum, but aren't drawn to romance-heavy paranormal fiction, suggesting they prefer sharper, more grounded thriller elements over atmospheric fantasy.</p>
+          </div>
+
+          <h2 class="recs-title">Recommended for you</h2>
+          <ol class="recs-list example-recs-list">
+            <li class="rec-card">
+              <div class="rec-header">
+                <div class="rec-meta">
+                  <span class="rec-title">The Girl on the Train</span>
+                  <span class="rec-author">Paula Hawkins</span>
+                </div>
+                <div class="rec-score-wrap">
+                  <span class="rec-score">94%</span>
+                  <span class="rec-score-label">match</span>
+                </div>
+              </div>
+              <p class="rec-why">A taut psychological thriller built on unreliable narrators and escalating dread — if Gone Girl's twisty tension and The Da Vinci Code's compulsive pacing are your speed, this delivers both in one sitting.</p>
+              <div class="rec-footer">
+                <span class="rec-vibe">Psychological thriller</span>
+              </div>
+            </li>
+            <li class="rec-card">
+              <div class="rec-header">
+                <div class="rec-meta">
+                  <span class="rec-title">The Silent Patient</span>
+                  <span class="rec-author">Alex Michaelides</span>
+                </div>
+                <div class="rec-score-wrap">
+                  <span class="rec-score">91%</span>
+                  <span class="rec-score-label">match</span>
+                </div>
+              </div>
+              <p class="rec-why">A locked-room mystery with a jaw-dropping final act. It shares Gone Girl's dark domestic suspense and Harry Potter's satisfying payoff structure — written for readers who like to feel clever, then feel fooled.</p>
+              <div class="rec-footer">
+                <span class="rec-vibe">Dark mystery · twist ending</span>
+              </div>
+            </li>
+            <li class="rec-card">
+              <div class="rec-header">
+                <div class="rec-meta">
+                  <span class="rec-title">The Hunger Games</span>
+                  <span class="rec-author">Suzanne Collins</span>
+                </div>
+                <div class="rec-score-wrap">
+                  <span class="rec-score">88%</span>
+                  <span class="rec-score-label">match</span>
+                </div>
+              </div>
+              <p class="rec-why">Propulsive, plot-driven, and genuinely hard to put down. If you loved Harry Potter's momentum and Gone Girl's sharp edge, Collins delivers relentless urgency — minus the paranormal romance.</p>
+              <div class="rec-footer">
+                <span class="rec-vibe">Dystopian action · series</span>
+              </div>
+            </li>
+          </ol>
         </section>
 
         <section class="items-section" id="items-section" style="display:none">
@@ -84,6 +169,15 @@
 
           <h2 class="recs-title">Recommended for you</h2>
           <ol class="recs-list" id="recs-list"></ol>
+
+          <div class="email-cta" id="email-cta" style="display:none">
+            <p class="email-cta-label">Get these recommendations in your inbox</p>
+            <div class="email-cta-row">
+              <input type="email" id="email-input" class="email-input" placeholder="your@email.com" autocomplete="email" />
+              <button class="email-send-btn" id="email-send-btn" type="button">Send to my inbox</button>
+            </div>
+            <p class="email-cta-status" id="email-cta-status"></p>
+          </div>
         </section>
       </main>
 
@@ -119,6 +213,12 @@
           </div>
         </div>
         <p class="rec-why"></p>
+        <div class="watch-fields" style="display:none">
+          <span class="rec-format-badge"></span>
+          <span class="rec-runtime"></span>
+          <span class="rec-where-to-watch"></span>
+          <span class="rec-year"></span>
+        </div>
         <div class="rec-footer">
           <span class="rec-vibe"></span>
           <div class="rec-actions">
@@ -128,12 +228,7 @@
         </div>
         <div class="dismiss-reasons" style="display:none">
           <span class="dismiss-prompt">Why skip this?</span>
-          <div class="dismiss-reason-btns">
-            <button class="dismiss-reason-btn" type="button" data-reason="Already listen to it">Already listen to it</button>
-            <button class="dismiss-reason-btn" type="button" data-reason="Not my kind of host">Not my kind of host</button>
-            <button class="dismiss-reason-btn" type="button" data-reason="Too mainstream">Too mainstream</button>
-            <button class="dismiss-reason-btn" type="button" data-reason="Not interested in the topic">Not interested in the topic</button>
-          </div>
+          <div class="dismiss-reason-btns"></div>
           <button class="dismiss-cancel-btn" type="button">Cancel</button>
         </div>
       </li>

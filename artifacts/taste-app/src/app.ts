@@ -13,6 +13,10 @@ interface Recommendation {
   why: string;
   vibe: string;
   amazon_search: string;
+  format?: string;
+  runtime?: string;
+  where_to_watch?: string;
+  year?: string;
 }
 
 interface ApiResponse {
@@ -20,9 +24,11 @@ interface ApiResponse {
   recommendations: Recommendation[];
 }
 
-type Category = "books" | "podcasts";
+type Category = "books" | "podcasts" | "watch";
 
 let activeCategory: Category = "books";
+let watchFormat: "series" | "films" | "both" = "both";
+let watchMood: "light" | "dark" | "any" = "any";
 const items: Item[] = [];
 let currentRecs: Recommendation[] = [];
 let currentTasteProfile = "";
@@ -32,7 +38,7 @@ const CATEGORY_CONFIG: Record<Category, {
   label: string;
   placeholder: string;
   dismissBtn: string;
-  linkText: string;
+  linkText: string | null;
   sharePrefix: string;
   shareByWord: string;
   minError: string;
@@ -55,6 +61,31 @@ const CATEGORY_CONFIG: Record<Category, {
     shareByWord: "hosted by",
     minError: "Add at least 3 podcasts to get a good recommendation.",
   },
+  watch: {
+    label: "What have you watched?",
+    placeholder: "e.g. Breaking Bad, The Godfather, Succession…",
+    dismissBtn: "I've watched this",
+    linkText: null,
+    sharePrefix: "My viewer profile:",
+    shareByWord: "by",
+    minError: "Add at least 3 shows or films to get a good recommendation.",
+  },
+};
+
+const DISMISS_REASONS: Partial<Record<Category, string[]>> = {
+  podcasts: [
+    "Already listen to it",
+    "Not my kind of host",
+    "Too mainstream",
+    "Not interested in the topic",
+  ],
+  watch: [
+    "Already watched it",
+    "Too long a commitment",
+    "Not available on my platforms",
+    "Not my kind of tone",
+    "Not interested in the topic",
+  ],
 };
 
 const itemInput = document.getElementById("item-input") as HTMLInputElement;
@@ -75,6 +106,12 @@ const recTemplate = document.getElementById("rec-template") as HTMLTemplateEleme
 const importBtn = document.getElementById("import-btn") as HTMLButtonElement;
 const csvFileInput = document.getElementById("csv-file-input") as HTMLInputElement;
 const inputLabel = document.querySelector(".input-label") as HTMLLabelElement;
+const watchOptions = document.getElementById("watch-options") as HTMLElement;
+const emailCta = document.getElementById("email-cta") as HTMLElement;
+const exampleSection = document.getElementById("example-section") as HTMLElement;
+const emailInput = document.getElementById("email-input") as HTMLInputElement;
+const emailSendBtn = document.getElementById("email-send-btn") as HTMLButtonElement;
+const emailStatus = document.getElementById("email-cta-status") as HTMLElement;
 
 function generateId(): string {
   return Math.random().toString(36).slice(2, 9);
@@ -93,6 +130,7 @@ function switchCategory(cat: Category): void {
   itemsSection.style.display = "none";
   ctaRow.style.display = "none";
   resultsSection.style.display = "none";
+  emailCta.style.display = "none";
   currentRecs = [];
   currentTasteProfile = "";
   seenTitles.clear();
@@ -103,6 +141,8 @@ function switchCategory(cat: Category): void {
   itemInput.placeholder = config.placeholder;
 
   importBtn.style.display = cat === "books" ? "inline-flex" : "none";
+  watchOptions.style.display = cat === "watch" ? "flex" : "none";
+  exampleSection.style.display = cat === "books" ? "flex" : "none";
 }
 
 function addItem(name: string): void {
@@ -164,25 +204,42 @@ function renderItem(item: Item): void {
 function updateCta(): void {
   ctaRow.style.display = items.length >= 1 ? "flex" : "none";
   if (items.length === 0) itemsSection.style.display = "none";
+  exampleSection.style.display = items.length === 0 && activeCategory === "books" ? "flex" : "none";
 }
 
 function fillRecCard(li: HTMLElement, rec: Recommendation): void {
   (li.querySelector(".rec-title") as HTMLElement).textContent = rec.title;
-  (li.querySelector(".rec-author") as HTMLElement).textContent =
-    rec.author || "";
+  (li.querySelector(".rec-author") as HTMLElement).textContent = rec.author || "";
   (li.querySelector(".rec-score") as HTMLElement).textContent =
     typeof rec.match_score === "number"
       ? `${Math.round(rec.match_score)}%`
       : String(rec.match_score);
   (li.querySelector(".rec-why") as HTMLElement).textContent = rec.why;
   (li.querySelector(".rec-vibe") as HTMLElement).textContent = rec.vibe || "";
+
   const link = li.querySelector(".rec-link") as HTMLAnchorElement;
-  link.textContent = CATEGORY_CONFIG[activeCategory].linkText;
-  link.href =
-    rec.amazon_search ||
-    (activeCategory === "podcasts"
-      ? `https://open.spotify.com/search/${encodeURIComponent(rec.title)}`
-      : `https://www.amazon.co.uk/s?k=${encodeURIComponent(rec.title + " " + (rec.author || ""))}&tag=uncuratedapp-20`);
+  const config = CATEGORY_CONFIG[activeCategory];
+  if (config.linkText) {
+    link.textContent = config.linkText;
+    link.href = rec.amazon_search ||
+      (activeCategory === "podcasts"
+        ? `https://open.spotify.com/search/${encodeURIComponent(rec.title)}`
+        : `https://www.amazon.co.uk/s?k=${encodeURIComponent(rec.title + " " + (rec.author || ""))}&tag=uncuratedapp-20`);
+    link.style.display = "";
+  } else {
+    link.style.display = "none";
+  }
+
+  const watchFields = li.querySelector(".watch-fields") as HTMLElement;
+  if (activeCategory === "watch") {
+    watchFields.style.display = "flex";
+    (li.querySelector(".rec-format-badge") as HTMLElement).textContent = rec.format || "";
+    (li.querySelector(".rec-runtime") as HTMLElement).textContent = rec.runtime || "";
+    (li.querySelector(".rec-where-to-watch") as HTMLElement).textContent = rec.where_to_watch || "";
+    (li.querySelector(".rec-year") as HTMLElement).textContent = rec.year || "";
+  } else {
+    watchFields.style.display = "none";
+  }
 }
 
 function showDismissReasons(cardEl: HTMLElement): void {
@@ -201,15 +258,23 @@ function bindCardButtons(cardEl: HTMLElement, rec: Recommendation): void {
   readBtn.textContent = config.dismissBtn;
   readBtn.disabled = false;
 
-  if (activeCategory === "podcasts") {
-    readBtn.onclick = () => showDismissReasons(cardEl);
-    cardEl.querySelectorAll<HTMLButtonElement>(".dismiss-reason-btn").forEach((btn) => {
+  const reasons = DISMISS_REASONS[activeCategory];
+  if (reasons) {
+    const reasonBtnsContainer = cardEl.querySelector(".dismiss-reason-btns") as HTMLElement;
+    reasonBtnsContainer.innerHTML = "";
+    reasons.forEach((reason) => {
+      const btn = document.createElement("button");
+      btn.className = "dismiss-reason-btn";
+      btn.type = "button";
+      btn.dataset.reason = reason;
+      btn.textContent = reason;
       btn.onclick = () => {
-        const reason = btn.dataset.reason!;
         hideDismissReasons(cardEl);
         replaceRec(cardEl, rec.title, reason);
       };
+      reasonBtnsContainer.appendChild(btn);
     });
+    readBtn.onclick = () => showDismissReasons(cardEl);
     (cardEl.querySelector(".dismiss-cancel-btn") as HTMLButtonElement).onclick = () => {
       hideDismissReasons(cardEl);
     };
@@ -237,6 +302,13 @@ function renderResults(data: ApiResponse): void {
   recsList.innerHTML = "";
   currentRecs.forEach((rec) => renderRecCard(rec));
 
+  emailInput.value = "";
+  emailStatus.textContent = "";
+  emailStatus.className = "email-cta-status";
+  emailSendBtn.disabled = false;
+  emailSendBtn.textContent = "Send to my inbox";
+  emailCta.style.display = "flex";
+
   resultsSection.style.display = "flex";
   resultsSection.scrollIntoView({ behavior: "smooth", block: "start" });
 }
@@ -260,17 +332,23 @@ async function replaceRec(
     .map((r) => r.title);
   const payload = items.map((i) => ({ name: i.name, rating: i.rating || "unrated" }));
 
+  const replaceBody: Record<string, unknown> = {
+    items: payload,
+    exclude: excludeTitles,
+    currentlyShown,
+    category: activeCategory,
+    dismissReason,
+  };
+  if (activeCategory === "watch") {
+    replaceBody.format = watchFormat;
+    replaceBody.mood = watchMood;
+  }
+
   try {
     const res = await fetch("/api/recommendations/replace", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        items: payload,
-        exclude: excludeTitles,
-        currentlyShown,
-        category: activeCategory,
-        dismissReason,
-      }),
+      body: JSON.stringify(replaceBody),
     });
 
     if (!res.ok) {
@@ -297,7 +375,7 @@ async function replaceRec(
   } catch (err: unknown) {
     readBtn.disabled = false;
     readBtn.textContent = CATEGORY_CONFIG[activeCategory].dismissBtn;
-    if (activeCategory === "podcasts") {
+    if (DISMISS_REASONS[activeCategory]) {
       readBtn.onclick = () => showDismissReasons(cardEl);
     } else {
       readBtn.onclick = () => replaceRec(cardEl, oldTitle);
@@ -344,11 +422,17 @@ async function fetchRecommendations(): Promise<void> {
 
   document.querySelector(".error-banner")?.remove();
 
+  const recBody: Record<string, unknown> = { items: payload, category: activeCategory };
+  if (activeCategory === "watch") {
+    recBody.format = watchFormat;
+    recBody.mood = watchMood;
+  }
+
   try {
     const res = await fetch("/api/recommendations", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items: payload, category: activeCategory }),
+      body: JSON.stringify(recBody),
     });
 
     if (!res.ok) {
@@ -514,9 +598,67 @@ document.querySelectorAll<HTMLButtonElement>(".category-btn[data-category]").for
   });
 });
 
+document.querySelectorAll<HTMLButtonElement>(".toggle-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const group = btn.dataset.toggle!;
+    const value = btn.dataset.value!;
+    btn.closest(".toggle-btns")!.querySelectorAll<HTMLButtonElement>(".toggle-btn").forEach((b) => {
+      b.classList.toggle("active", b === btn);
+    });
+    if (group === "format") watchFormat = value as "series" | "films" | "both";
+    if (group === "mood") watchMood = value as "light" | "dark" | "any";
+  });
+});
+
+async function sendEmail(): Promise<void> {
+  const email = emailInput.value.trim();
+  if (!email) {
+    emailInput.focus();
+    return;
+  }
+  if (!currentTasteProfile || currentRecs.length === 0) return;
+
+  emailSendBtn.disabled = true;
+  emailSendBtn.textContent = "Sending…";
+  emailStatus.textContent = "";
+  emailStatus.className = "email-cta-status";
+
+  try {
+    const res = await fetch("/api/email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email,
+        taste_profile: currentTasteProfile,
+        recommendations: currentRecs,
+        category: activeCategory,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(err.error || `Server error ${res.status}`);
+    }
+
+    emailStatus.textContent = "Sent! Check your inbox.";
+    emailStatus.className = "email-cta-status success";
+    emailSendBtn.textContent = "Sent";
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+    emailStatus.textContent = msg;
+    emailStatus.className = "email-cta-status error";
+    emailSendBtn.disabled = false;
+    emailSendBtn.textContent = "Send to my inbox";
+  }
+}
+
 itemInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") addItem(itemInput.value);
 });
 addBtn.addEventListener("click", () => addItem(itemInput.value));
 findBtn.addEventListener("click", fetchRecommendations);
 copyBtn.addEventListener("click", copyProfile);
+emailSendBtn.addEventListener("click", sendEmail);
+emailInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") sendEmail();
+});
