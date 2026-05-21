@@ -1,5 +1,7 @@
 # Usage:
-#   1. Create a .env file in this directory with CLAUDE_API_KEY=sk-ant-...
+#   1. Create a .env file in this directory with:
+#        CLAUDE_API_KEY=sk-ant-...
+#        RESEND_API_KEY=re_...   (from https://resend.com — verify your sending domain there too)
 #   2. docker compose up --build   (first run, ~2-3 min to install deps)
 #   3. docker compose up           (subsequent runs, uses cached image)
 #   4. Open http://localhost:5173
@@ -15,6 +17,7 @@ services:
       - "8080:8080"
     environment:
       CLAUDE_API_KEY: ${CLAUDE_API_KEY}
+      RESEND_API_KEY: ${RESEND_API_KEY}
       SESSION_SECRET: dev-local-secret
       NODE_ENV: development
       PORT: "8080"

@@ -11,6 +11,8 @@ interface RatedItem {
 interface RecommendationRequest {
   items: RatedItem[];
   category: string;
+  format?: string;
+  mood?: string;
 }
 
 interface ReplaceRequest {
@@ -19,6 +21,8 @@ interface ReplaceRequest {
   currentlyShown: string[];
   category: string;
   dismissReason?: string;
+  format?: string;
+  mood?: string;
 }
 
 interface Recommendation {
@@ -28,6 +32,10 @@ interface Recommendation {
   why: string;
   vibe: string;
   amazon_search: string;
+  format?: string;
+  runtime?: string;
+  where_to_watch?: string;
+  year?: string;
 }
 
 interface RecommendationResponse {
@@ -177,6 +185,148 @@ Rules:
 - Your entire response must be valid JSON starting with { and ending with } — nothing else`;
 }
 
+function buildWatchPrompt(items: RatedItem[], format: string, mood: string): string {
+  const itemLines = items.map((i) => `- "${i.name}" (${i.rating})`).join("\n");
+
+  const formatNote =
+    format === "series" ? "Series only (no films)"
+    : format === "films" ? "Films only (no series)"
+    : "Both series and films welcome";
+
+  const moodNote =
+    mood === "light" ? "Light/uplifting tone preferred"
+    : mood === "dark" ? "Dark/serious tone preferred"
+    : "No mood preference";
+
+  return `You are an honest, agenda-free TV and film recommendation engine. You have no commercial affiliations, no sponsored content, and no hidden agenda. Your only goal is to understand someone's taste and give them genuinely useful recommendations.
+
+Here are the TV shows and films this person has watched, along with their ratings:
+
+${itemLines}
+
+Rating key:
+- loved: they adored it
+- liked: they enjoyed it
+- meh: it didn't connect with them
+- abandoned: they couldn't finish it (DNF)
+- hated: they finished it but strongly disliked it
+- unrated: no opinion provided
+
+User preferences:
+- Format: ${formatNote}
+- Mood: ${moodNote}
+
+Based on these ratings and preferences, analyze their taste and recommend 5 TV shows or films they are very likely to love.
+
+Respond ONLY with valid JSON. Your response must begin with { and end with }. Do not use backticks, markdown, code fences, or any text outside the JSON object. Use exactly this shape:
+
+{
+  "taste_profile": "A 2-3 sentence honest description of their viewing taste and what makes them tick as a viewer.",
+  "recommendations": [
+    {
+      "title": "Show or Film Title",
+      "author": "Director or Creator Name",
+      "match_score": 87,
+      "why": "One or two sentences explaining why this fits their specific taste based on what they loved and did not love.",
+      "vibe": "A short evocative phrase (e.g. slow-burn psychological thriller or warm ensemble comedy)",
+      "format": "Series",
+      "runtime": "3 seasons ~30hrs",
+      "where_to_watch": "Netflix",
+      "year": "2019"
+    }
+  ]
+}
+
+Rules:
+- match_score must be a number between 60 and 99
+- Do not recommend anything the user has already listed
+- format must be exactly "Series" or "Film"
+- runtime should be concise: for series use "X seasons ~Xhr", for films use "Xhr film"
+- where_to_watch should list the primary streaming platform(s). If on multiple, list up to 2 separated by " / "
+- year should be the release year as a 4-digit string
+- Your entire response must be valid JSON starting with { and ending with } — nothing else`;
+}
+
+function buildWatchReplacePrompt(
+  items: RatedItem[],
+  exclude: string[],
+  currentlyShown: string[],
+  format: string,
+  mood: string,
+  dismissReason?: string,
+): string {
+  const itemLines = items.map((i) => `- "${i.name}" (${i.rating})`).join("\n");
+
+  const allForbidden = [...items.map((i) => i.name), ...exclude];
+  const forbiddenLines = [...new Set(allForbidden.map((t) => t.toLowerCase()))]
+    .map((t) => `- "${t}"`)
+    .join("\n");
+
+  const shownLines =
+    currentlyShown.length > 0
+      ? currentlyShown.map((t) => `- "${t}"`).join("\n")
+      : "(none)";
+
+  const formatNote =
+    format === "series" ? "Series only (no films)"
+    : format === "films" ? "Films only (no series)"
+    : "Both series and films welcome";
+
+  const moodNote =
+    mood === "light" ? "Light/uplifting tone preferred"
+    : mood === "dark" ? "Dark/serious tone preferred"
+    : "No mood preference";
+
+  const dismissContext = dismissReason
+    ? `\nThe user passed on the previous recommendation because: "${dismissReason}". Use this to find a better fit — if they said "Already watched it", find something with similar appeal they haven't seen; if "Too long a commitment", prefer shorter runtime (a film or a short series); if "Not available on my platforms", aim for widely available platforms like Netflix or Prime Video; if "Not my kind of tone", avoid similar atmosphere or genre feel; if "Not interested in the topic", steer clear of that subject area entirely.\n`
+    : "";
+
+  return `You are an honest, agenda-free TV and film recommendation engine with no commercial agenda.
+
+Here are the shows and films this person has watched, along with their ratings:
+
+${itemLines}
+
+Rating key: loved = adored it, liked = enjoyed it, meh = did not connect, abandoned = could not finish, hated = finished but strongly disliked, unrated = no opinion.
+
+User preferences:
+- Format: ${formatNote}
+- Mood: ${moodNote}
+${dismissContext}
+FORBIDDEN TITLES — do not suggest any of these under any circumstances. Treat a title as forbidden if it matches in any form, including with or without a series prefix, subtitle, or punctuation differences:
+${forbiddenLines}
+
+CURRENTLY SHOWN — these are already visible to the user right now and must also not be suggested:
+${shownLines}
+
+Recommend exactly ONE show or film that does not appear in either list above and fits this person's taste.
+
+Before responding, silently check your chosen title against every item in both lists above. If there is any match — even a partial or reformatted one — pick a different title. Only respond when you are certain the title is not in either list.
+
+Respond ONLY with valid JSON. Your response must begin with { and end with }. Do not use backticks, markdown, code fences, or any text outside the JSON object. Use exactly this shape:
+
+{
+  "title": "Show or Film Title",
+  "author": "Director or Creator Name",
+  "match_score": 87,
+  "why": "One or two sentences explaining why this fits their specific taste.",
+  "vibe": "A short evocative phrase",
+  "format": "Series",
+  "runtime": "3 seasons ~30hrs",
+  "where_to_watch": "Netflix",
+  "year": "2019"
+}
+
+Rules:
+- match_score must be a number between 60 and 99
+- The title must not appear in either list above in any form
+- format must be exactly "Series" or "Film"
+- runtime should be concise: for series use "X seasons ~Xhr", for films use "Xhr film"
+- where_to_watch should list the primary streaming platform(s). If on multiple, list up to 2 separated by " / "
+- year should be the release year as a 4-digit string
+- Your entire response must be valid JSON starting with { and ending with } — nothing else`;
+}
+
 function buildReplacePrompt(
   items: RatedItem[],
   exclude: string[],
@@ -256,7 +406,7 @@ router.post("/recommendations", async (req, res) => {
     return;
   }
 
-  const { items, category = "books" } = req.body as RecommendationRequest;
+  const { items, category = "books", format = "both", mood = "any" } = req.body as RecommendationRequest;
 
   if (!Array.isArray(items) || items.length === 0) {
     res.status(400).json({ error: "Please provide at least one item." });
@@ -280,7 +430,7 @@ router.post("/recommendations", async (req, res) => {
       {
         model: "claude-sonnet-4-5",
         max_tokens: 2048,
-        messages: [{ role: "user", content: buildPrompt(items, category) }],
+        messages: [{ role: "user", content: category === "watch" ? buildWatchPrompt(items, format, mood) : buildPrompt(items, category) }],
       },
       { signal: abort.signal },
     );
@@ -311,8 +461,10 @@ router.post("/recommendations", async (req, res) => {
     parsed.recommendations = parsed.recommendations.map((rec) => ({
       ...rec,
       amazon_search: category === "podcasts"
-        ? sanitizePodcastUrl(rec.amazon_search, rec.title)
-        : sanitizeAmazonUrl(rec.amazon_search, rec.title, rec.author),
+        ? sanitizePodcastUrl(rec.amazon_search ?? "", rec.title)
+        : category === "watch"
+          ? "" // no affiliate link for Watch — placeholder for future streaming affiliate
+          : sanitizeAmazonUrl(rec.amazon_search ?? "", rec.title, rec.author),
     }));
 
     res.json(parsed);
@@ -336,6 +488,8 @@ router.post("/recommendations/replace", async (req, res) => {
     currentlyShown = [],
     category = "books",
     dismissReason,
+    format = "both",
+    mood = "any",
   } = req.body as ReplaceRequest;
 
   if (!Array.isArray(items) || items.length === 0) {
@@ -363,13 +517,9 @@ router.post("/recommendations/replace", async (req, res) => {
         messages: [
           {
             role: "user",
-            content: buildReplacePrompt(
-              items,
-              exclude,
-              currentlyShown,
-              category,
-              dismissReason,
-            ),
+            content: category === "watch"
+              ? buildWatchReplacePrompt(items, exclude, currentlyShown, format, mood, dismissReason)
+              : buildReplacePrompt(items, exclude, currentlyShown, category, dismissReason),
           },
         ],
       },
@@ -400,8 +550,10 @@ router.post("/recommendations/replace", async (req, res) => {
     }
 
     rec.amazon_search = category === "podcasts"
-      ? sanitizePodcastUrl(rec.amazon_search, rec.title)
-      : sanitizeAmazonUrl(rec.amazon_search, rec.title, rec.author);
+      ? sanitizePodcastUrl(rec.amazon_search ?? "", rec.title)
+      : category === "watch"
+        ? "" // no affiliate link for Watch — placeholder for future streaming affiliate
+        : sanitizeAmazonUrl(rec.amazon_search ?? "", rec.title, rec.author);
 
     res.json({ recommendation: rec });
   } catch (err: unknown) {
