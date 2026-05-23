@@ -841,7 +841,7 @@ function truncateAtWordBoundary(text: string, maxChars: number): string {
 function buildShareCardEl(profileText: string, recs: Recommendation[]): HTMLElement {
   // Outer wrapper — exactly 390×844px (Instagram Stories); overflow:hidden hard-clips any overflow
   const wrap = document.createElement("div");
-  wrap.style.cssText = "position:absolute;left:-9999px;top:0;width:390px;height:844px;overflow:hidden;background:#0f0f0f;padding:28px 20px 24px;box-sizing:border-box;";
+  wrap.style.cssText = "position:absolute;left:-9999px;top:0;width:390px;height:844px;overflow:hidden;background:#0f0f0f;padding:64px 28px 32px;box-sizing:border-box;";
 
   // ── Branding header ───────────────────────────────────────────────────
   const header = document.createElement("div");
