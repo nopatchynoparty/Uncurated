@@ -40,6 +40,7 @@ interface Recommendation {
 
 interface RecommendationResponse {
   taste_profile: string;
+  short_taste_profile?: string;
   recommendations: Recommendation[];
 }
 
@@ -166,6 +167,7 @@ Respond ONLY with valid JSON. Your response must begin with { and end with }. Do
 
 {
   "taste_profile": "A 2-3 sentence honest description of their reading taste and what makes them tick as a reader.",
+  "short_taste_profile": "One punchy complete sentence under 120 characters distilling their taste for sharing. Must end with a full stop. Never use '...' or ellipsis. Example: 'A fast-paced military sci-fi reader who wants stakes, action, and protagonists who never quit.'",
   "recommendations": [
     {
       "title": "Book Title",
@@ -182,6 +184,7 @@ Rules:
 - match_score must be a number between 60 and 99
 - Do not recommend anything the user has already listed
 - amazon_search must be a valid Amazon search URL (amazon.co.uk) with the book title and author URL-encoded
+- short_taste_profile must be exactly one complete sentence, maximum 120 characters, ending with a full stop — never use '...' or ellipsis, never truncated mid-sentence
 - Your entire response must be valid JSON starting with { and ending with } — nothing else`;
 }
 

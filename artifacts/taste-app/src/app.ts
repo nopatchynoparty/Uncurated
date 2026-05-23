@@ -21,7 +21,15 @@ interface Recommendation {
 
 interface ApiResponse {
   taste_profile: string;
+  short_taste_profile?: string;
   recommendations: Recommendation[];
+}
+
+interface ScannedBook {
+  id: string;
+  title: string;
+  author: string;
+  confidence: "high" | "medium";
 }
 
 type Category = "books" | "podcasts" | "watch";
@@ -32,7 +40,9 @@ let watchMood: "light" | "dark" | "any" = "any";
 const items: Item[] = [];
 let currentRecs: Recommendation[] = [];
 let currentTasteProfile = "";
+let currentShortTasteProfile = "";
 const seenTitles = new Set<string>();
+let reviewBooks: ScannedBook[] = [];
 
 const CATEGORY_CONFIG: Record<Category, {
   label: string;
@@ -112,6 +122,23 @@ const exampleSection = document.getElementById("example-section") as HTMLElement
 const emailInput = document.getElementById("email-input") as HTMLInputElement;
 const emailSendBtn = document.getElementById("email-send-btn") as HTMLButtonElement;
 const emailStatus = document.getElementById("email-cta-status") as HTMLElement;
+const importBtns = document.getElementById("import-btns") as HTMLElement;
+
+// Shelf scanner elements
+const scanBtn = document.getElementById("scan-btn") as HTMLButtonElement;
+const shelfImageInput = document.getElementById("shelf-image-input") as HTMLInputElement;
+const shelfTipOverlay = document.getElementById("shelf-tip-overlay") as HTMLElement;
+const shelfTipCancel = document.getElementById("shelf-tip-cancel") as HTMLButtonElement;
+const shelfTipConfirm = document.getElementById("shelf-tip-confirm") as HTMLButtonElement;
+const shelfReviewOverlay = document.getElementById("shelf-review-overlay") as HTMLElement;
+const shelfReviewClose = document.getElementById("shelf-review-close") as HTMLButtonElement;
+const shelfReviewSummary = document.getElementById("shelf-review-summary") as HTMLElement;
+const shelfReviewList = document.getElementById("shelf-review-list") as HTMLUListElement;
+const shelfReviewConfirm = document.getElementById("shelf-review-confirm") as HTMLButtonElement;
+const inputSection = document.querySelector(".input-section") as HTMLElement;
+
+// Share card element
+const shareCardBtn = document.getElementById("share-card-btn") as HTMLButtonElement;
 
 function generateId(): string {
   return Math.random().toString(36).slice(2, 9);
@@ -133,6 +160,7 @@ function switchCategory(cat: Category): void {
   emailCta.style.display = "none";
   currentRecs = [];
   currentTasteProfile = "";
+  currentShortTasteProfile = "";
   seenTitles.clear();
   document.querySelector(".error-banner")?.remove();
 
@@ -140,7 +168,7 @@ function switchCategory(cat: Category): void {
   inputLabel.textContent = config.label;
   itemInput.placeholder = config.placeholder;
 
-  importBtn.style.display = cat === "books" ? "inline-flex" : "none";
+  importBtns.style.display = cat === "books" ? "flex" : "none";
   watchOptions.style.display = cat === "watch" ? "flex" : "none";
   exampleSection.style.display = cat === "books" ? "flex" : "none";
 }
@@ -294,7 +322,9 @@ function renderRecCard(rec: Recommendation): HTMLElement {
 
 function renderResults(data: ApiResponse): void {
   currentTasteProfile = data.taste_profile;
-  currentRecs = [...(data.recommendations || [])];
+  currentShortTasteProfile = data.short_taste_profile || "";
+  console.log("[uncurated] short_taste_profile:", data.short_taste_profile ?? "(missing — API did not return field)");
+  currentRecs = [...(data.recommendations || [])].sort((a, b) => b.match_score - a.match_score);
   seenTitles.clear();
   currentRecs.forEach((r) => seenTitles.add(r.title.toLowerCase()));
 
@@ -307,6 +337,9 @@ function renderResults(data: ApiResponse): void {
   emailStatus.className = "email-cta-status";
   emailSendBtn.disabled = false;
   emailSendBtn.textContent = "Send to my inbox";
+  shareCardBtn.disabled = false;
+  shareCardBtn.textContent = "Share my recommendations";
+  shareCardBtn.querySelector("svg")?.removeAttribute("style");
   emailCta.style.display = "flex";
 
   resultsSection.style.display = "flex";
@@ -397,13 +430,12 @@ function showInlineError(cardEl: HTMLElement, msg: string): void {
   setTimeout(() => el.remove(), 5000);
 }
 
-function showError(msg: string): void {
-  const existing = document.querySelector(".error-banner");
-  if (existing) existing.remove();
+function showError(msg: string, anchor: HTMLElement = ctaRow, extraClass?: string): void {
+  document.querySelector(extraClass ? `.${extraClass}` : ".error-banner:not(.scan-error-banner)")?.remove();
   const el = document.createElement("div");
-  el.className = "error-banner";
+  el.className = extraClass ? `error-banner ${extraClass}` : "error-banner";
   el.textContent = msg;
-  ctaRow.after(el);
+  anchor.after(el);
   setTimeout(() => el.remove(), 8000);
 }
 
@@ -589,6 +621,417 @@ csvFileInput.addEventListener("change", () => {
   };
   reader.readAsText(file);
 });
+
+// ── Bookshelf scanner ─────────────────────────────────────────────────────────
+
+function showScanError(msg: string): void {
+  showError(msg, inputSection, "scan-error-banner");
+}
+
+async function resizeImageForScan(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Failed to load image")); };
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const MAX = 1280;
+      let { width, height } = img;
+      if (width > MAX || height > MAX) {
+        if (width > height) {
+          height = Math.round((height * MAX) / width);
+          width = MAX;
+        } else {
+          width = Math.round((width * MAX) / height);
+          height = MAX;
+        }
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL("image/jpeg", 0.82));
+    };
+    img.src = url;
+  });
+}
+
+async function handleShelfScan(file: File): Promise<void> {
+  scanBtn.disabled = true;
+  const origContent = scanBtn.innerHTML;
+  scanBtn.textContent = "Reading your bookshelf…";
+
+  try {
+    const imageData = await resizeImageForScan(file);
+
+    const res = await fetch("/api/scan-shelf", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image: imageData }),
+    });
+
+    if (!res.ok) {
+      const err = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(err.error || `Server error ${res.status}`);
+    }
+
+    const data = (await res.json()) as {
+      books: Array<{ title: string; author: string; confidence: "high" | "medium" }>;
+      unreadable_count: number;
+    };
+
+    if (data.books.length === 0) {
+      showScanError("No book titles were readable in this photo. Try better lighting or a closer shot.");
+      return;
+    }
+
+    showShelfReview(data.books, data.unreadable_count);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+    showScanError(msg);
+  } finally {
+    scanBtn.disabled = false;
+    scanBtn.innerHTML = origContent;
+  }
+}
+
+function showShelfTip(): void {
+  shelfTipOverlay.style.display = "flex";
+}
+
+function hideShelfTip(): void {
+  shelfTipOverlay.style.display = "none";
+}
+
+function showShelfReview(
+  books: Array<{ title: string; author: string; confidence: "high" | "medium" }>,
+  unreadableCount: number,
+): void {
+  reviewBooks = books.map((b, i) => ({ ...b, id: String(i) }));
+
+  let highCount = 0;
+  let medCount = 0;
+  for (const b of reviewBooks) {
+    if (b.confidence === "high") highCount++;
+    else medCount++;
+  }
+
+  let summary = `Found ${highCount} book${highCount !== 1 ? "s" : ""} clearly`;
+  if (medCount > 0) summary += `, plus ${medCount} to double-check`;
+  if (unreadableCount > 0) summary += `. Approximately ${unreadableCount} spine${unreadableCount !== 1 ? "s" : ""} weren't readable`;
+  summary += ". Add any missing ones manually.";
+
+  shelfReviewSummary.textContent = summary;
+  renderReviewList();
+
+  shelfReviewOverlay.style.display = "flex";
+  document.body.style.overflow = "hidden";
+}
+
+function renderReviewList(): void {
+  shelfReviewList.innerHTML = "";
+
+  reviewBooks.forEach((book) => {
+    const li = document.createElement("li");
+    li.className = "review-book-row";
+
+    const infoDiv = document.createElement("div");
+    infoDiv.className = "review-book-info";
+
+    const titleEl = document.createElement("span");
+    titleEl.className = "review-book-title";
+    titleEl.textContent = book.title;
+    infoDiv.appendChild(titleEl);
+
+    if (book.author) {
+      const authorEl = document.createElement("span");
+      authorEl.className = "review-book-author";
+      authorEl.textContent = book.author;
+      infoDiv.appendChild(authorEl);
+    }
+
+    if (book.confidence === "medium") {
+      const badge = document.createElement("span");
+      badge.className = "review-confidence-badge";
+      badge.textContent = "double check this";
+      infoDiv.appendChild(badge);
+    }
+
+    const removeBtn = document.createElement("button");
+    removeBtn.className = "review-remove-btn";
+    removeBtn.setAttribute("aria-label", "Remove");
+    removeBtn.setAttribute("type", "button");
+    removeBtn.textContent = "×";
+    removeBtn.addEventListener("click", () => {
+      reviewBooks = reviewBooks.filter((b) => b.id !== book.id);
+      li.remove();
+      updateReviewConfirmBtn();
+    });
+
+    li.appendChild(infoDiv);
+    li.appendChild(removeBtn);
+    shelfReviewList.appendChild(li);
+  });
+
+  updateReviewConfirmBtn();
+}
+
+function updateReviewConfirmBtn(): void {
+  const count = reviewBooks.length;
+  shelfReviewConfirm.textContent =
+    count === 0 ? "No books to add" : `Add ${count} book${count !== 1 ? "s" : ""}`;
+  shelfReviewConfirm.disabled = count === 0;
+}
+
+function closeShelfReview(): void {
+  shelfReviewOverlay.style.display = "none";
+  document.body.style.overflow = "";
+}
+
+function confirmShelfBooks(): void {
+  let added = 0;
+  for (const book of reviewBooks) {
+    if (items.some((i) => i.name.toLowerCase() === book.title.toLowerCase())) continue;
+    const item: Item = { id: generateId(), name: book.title, rating: "liked" };
+    items.push(item);
+    renderItem(item);
+    added++;
+  }
+  closeShelfReview();
+  updateCta();
+  if (added === 0) {
+    showScanError("All detected books were already in your list.");
+  }
+}
+
+// Scan button → tip modal → file picker
+scanBtn.addEventListener("click", () => showShelfTip());
+shelfTipCancel.addEventListener("click", hideShelfTip);
+shelfTipConfirm.addEventListener("click", () => {
+  hideShelfTip();
+  shelfImageInput.click();
+});
+
+shelfTipOverlay.addEventListener("click", (e) => {
+  if (e.target === shelfTipOverlay) hideShelfTip();
+});
+
+shelfImageInput.addEventListener("change", () => {
+  const file = shelfImageInput.files?.[0];
+  if (!file) return;
+  shelfImageInput.value = "";
+  void handleShelfScan(file);
+});
+
+shelfReviewClose.addEventListener("click", closeShelfReview);
+shelfReviewOverlay.addEventListener("click", (e) => {
+  if (e.target === shelfReviewOverlay) closeShelfReview();
+});
+shelfReviewConfirm.addEventListener("click", confirmShelfBooks);
+
+// ── Shareable recommendation card (Canvas) ────────────────────────────────────
+
+function truncateAtWordBoundary(text: string, maxChars: number): string {
+  if (text.length <= maxChars) return text;
+  const truncated = text.slice(0, maxChars);
+  const lastSpace = truncated.lastIndexOf(" ");
+  return (lastSpace > 0 ? truncated.slice(0, lastSpace) : truncated) + "…";
+}
+
+function buildShareCardEl(profileText: string, recs: Recommendation[]): HTMLElement {
+  // Outer wrapper — exactly 390×844px (Instagram Stories); overflow:hidden hard-clips any overflow
+  const wrap = document.createElement("div");
+  wrap.style.cssText = "position:absolute;left:-9999px;top:0;width:390px;height:844px;overflow:hidden;background:#0f0f0f;padding:28px 20px 24px;box-sizing:border-box;";
+
+  // ── Branding header ───────────────────────────────────────────────────
+  const header = document.createElement("div");
+  header.style.cssText = "text-align:center;margin-bottom:24px;";
+
+  const logoDiv = document.createElement("div");
+  logoDiv.style.cssText = "font-family:'DM Serif Display',Georgia,serif;font-size:26px;line-height:1;margin-bottom:8px;";
+  const unSpan = document.createElement("span");
+  unSpan.style.cssText = "position:relative;color:#888;display:inline-block;";
+  const unTxt = document.createElement("span");
+  unTxt.textContent = "Un";
+  const strike = document.createElement("span");
+  strike.setAttribute("aria-hidden", "true");
+  strike.style.cssText = "position:absolute;top:42%;left:-1px;right:-1px;height:2px;background:#f5a623;border-radius:1px;";
+  unSpan.appendChild(unTxt);
+  unSpan.appendChild(strike);
+  const curatedSpan = document.createElement("span");
+  curatedSpan.textContent = "curated";
+  curatedSpan.style.color = "#f5f5f5";
+  logoDiv.appendChild(unSpan);
+  logoDiv.appendChild(curatedSpan);
+  header.appendChild(logoDiv);
+
+  const tagline = document.createElement("p");
+  tagline.textContent = "No algorithms. No sponsors. Just honest recommendations.";
+  tagline.style.cssText = "margin:0 0 14px;font-size:11px;color:#888;line-height:1.4;";
+  header.appendChild(tagline);
+
+  const sep = document.createElement("div");
+  sep.style.cssText = "width:72px;height:1px;background:#f5a623;margin:0 auto;";
+  header.appendChild(sep);
+  wrap.appendChild(header);
+
+  // ── Profile card ──────────────────────────────────────────────────────
+  const profileCard = document.createElement("div");
+  profileCard.className = "taste-profile-card";
+  profileCard.style.cssText = "margin-bottom:20px;padding:18px 20px;";
+
+  const profileCardHeader = document.createElement("div");
+  profileCardHeader.className = "taste-profile-header";
+  profileCardHeader.style.marginBottom = "10px";
+  const profileTitle = document.createElement("h2");
+  profileTitle.className = "taste-profile-title";
+  profileTitle.style.cssText = "margin:0;font-size:13px;";
+  profileTitle.textContent = "Your Uncurated Profile";
+  profileCardHeader.appendChild(profileTitle);
+  profileCard.appendChild(profileCardHeader);
+
+  const profileTextEl = document.createElement("p");
+  profileTextEl.className = "taste-profile-text";
+  profileTextEl.style.cssText = "margin:0;font-size:14px;line-height:1.6;";
+  profileTextEl.textContent = profileText;
+  profileCard.appendChild(profileTextEl);
+  wrap.appendChild(profileCard);
+
+  // ── Recs heading ──────────────────────────────────────────────────────
+  const recsTitle = document.createElement("h2");
+  recsTitle.className = "recs-title";
+  recsTitle.style.cssText = "margin:0 0 12px;font-size:11px;";
+  recsTitle.textContent = "Recommended for you";
+  wrap.appendChild(recsTitle);
+
+  // ── Rec cards ─────────────────────────────────────────────────────────
+  const recsList = document.createElement("ol");
+  recsList.className = "recs-list";
+  recsList.style.cssText = "margin-bottom:20px;gap:12px;";
+
+  recs.forEach((rec) => {
+    const li = document.createElement("li");
+    li.className = "rec-card";
+    li.style.cssText = "padding:16px 18px;gap:8px;";
+
+    const recHeader = document.createElement("div");
+    recHeader.className = "rec-header";
+    recHeader.style.gap = "8px";
+
+    const meta = document.createElement("div");
+    meta.className = "rec-meta";
+
+    const titleEl = document.createElement("span");
+    titleEl.className = "rec-title";
+    titleEl.style.fontSize = "22px";
+    titleEl.textContent = rec.title;
+    meta.appendChild(titleEl);
+
+    const authorEl = document.createElement("span");
+    authorEl.className = "rec-author";
+    authorEl.style.fontSize = "13px";
+    authorEl.textContent = rec.author;
+    meta.appendChild(authorEl);
+
+    recHeader.appendChild(meta);
+
+    const scoreWrap = document.createElement("div");
+    scoreWrap.className = "rec-score-wrap";
+
+    const scoreEl = document.createElement("span");
+    scoreEl.className = "rec-score";
+    scoreEl.style.fontSize = "20px";
+    scoreEl.textContent = typeof rec.match_score === "number" ? `${Math.round(rec.match_score)}%` : String(rec.match_score);
+    scoreWrap.appendChild(scoreEl);
+
+    const scoreLbl = document.createElement("span");
+    scoreLbl.className = "rec-score-label";
+    scoreLbl.style.fontSize = "10px";
+    scoreLbl.textContent = "match";
+    scoreWrap.appendChild(scoreLbl);
+
+    recHeader.appendChild(scoreWrap);
+    li.appendChild(recHeader);
+
+    const footer = document.createElement("div");
+    footer.className = "rec-footer";
+
+    const vibeEl = document.createElement("span");
+    vibeEl.className = "rec-vibe";
+    vibeEl.style.cssText = "max-width:100%;font-size:12px;padding:3px 10px;";
+    vibeEl.textContent = rec.vibe || "";
+    footer.appendChild(vibeEl);
+
+    li.appendChild(footer);
+    recsList.appendChild(li);
+  });
+
+  wrap.appendChild(recsList);
+
+  // ── Footer URL ────────────────────────────────────────────────────────
+  const divider = document.createElement("div");
+  divider.style.cssText = "height:1px;background:#2a2a2a;margin-bottom:14px;";
+  wrap.appendChild(divider);
+
+  const footerUrl = document.createElement("p");
+  footerUrl.textContent = "uncurated.app";
+  footerUrl.style.cssText = "margin:0;text-align:center;font-size:12px;font-weight:600;color:#f5a623;";
+  wrap.appendChild(footerUrl);
+
+  return wrap;
+}
+
+async function generateShareCard(): Promise<void> {
+  if (!currentTasteProfile || currentRecs.length === 0) return;
+  shareCardBtn.disabled = true;
+  const origHtml = shareCardBtn.innerHTML;
+  shareCardBtn.textContent = "Generating…";
+
+  try {
+    const { default: html2canvas } = await import("html2canvas");
+
+    await document.fonts.ready;
+    await Promise.all([
+      document.fonts.load('400 26px "DM Serif Display"'),
+      document.fonts.load('400 17px "DM Serif Display"'),
+      document.fonts.load('400 12px "DM Sans"'),
+      document.fonts.load('700 26px "DM Sans"'),
+    ]).catch(() => {});
+
+    const profileText = currentShortTasteProfile || truncateAtWordBoundary(currentTasteProfile.trim(), 120);
+    const topRecs = currentRecs.slice(0, 3);
+
+    const cardEl = buildShareCardEl(profileText, topRecs);
+    document.body.appendChild(cardEl);
+
+    try {
+      const canvas = await html2canvas(cardEl, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#0F0F0F",
+        logging: false,
+        width: 390,
+        height: 844,
+        windowWidth: 390,
+      });
+
+      const dataUrl = canvas.toDataURL("image/png");
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      a.download = "my-uncurated-picks.png";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } finally {
+      document.body.removeChild(cardEl);
+    }
+  } finally {
+    shareCardBtn.disabled = false;
+    shareCardBtn.innerHTML = origHtml;
+  }
+}
+
+shareCardBtn.addEventListener("click", () => void generateShareCard());
 
 // ── Event listeners ───────────────────────────────────────────────────────────
 

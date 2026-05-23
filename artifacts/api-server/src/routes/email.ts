@@ -189,7 +189,7 @@ function buildEmailHtml(tasteProfile: string, recs: Recommendation[], category: 
           <tr>
             <td style="text-align: center;">
               <p style="font-family: 'DM Sans', Arial, Helvetica, sans-serif; color: #555555; font-size: 13px; margin: 0; line-height: 1.7;">
-                Powered by Claude &nbsp;&middot;&nbsp; No affiliate influence on recommendations &nbsp;&middot;&nbsp; <a href="https://un-curated.replit.app" style="color: #555555; text-decoration: underline;">un-curated.replit.app</a>
+                Powered by Claude &nbsp;&middot;&nbsp; No affiliate influence on recommendations &nbsp;&middot;&nbsp; <a href="https://uncurated.app" style="color: #555555; text-decoration: underline;">uncurated.app</a>
               </p>
             </td>
           </tr>
@@ -238,8 +238,9 @@ router.post("/email", async (req, res) => {
   const resend = new Resend(apiKey);
   try {
     await resend.emails.send({
-      from: "Uncurated <onboarding@resend.dev>",
+      from: "Uncurated <hello@uncurated.app>",
       to: email,
+      reply_to: "hello@uncurated.app",
       subject: `Your Uncurated ${categoryLabel} recommendations`,
       html,
     });

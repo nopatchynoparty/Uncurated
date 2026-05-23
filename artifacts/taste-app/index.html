@@ -9,12 +9,14 @@
     <meta property="og:title" content="Uncurated — honest recommendations" />
     <meta property="og:description" content="An honest, agenda-free recommendation engine. No algorithms, no sponsors." />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://un-curated.replit.app/opengraph.png" />
+    <meta property="og:image" content="https://uncurated.app/opengraph.png" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Uncurated" />
     <meta name="twitter:description" content="Honest, agenda-free recommendations powered by AI." />
-    <meta name="twitter:image" content="https://un-curated.replit.app/opengraph.png" />
+    <meta name="twitter:image" content="https://uncurated.app/opengraph.png" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="#0F0F0F" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet" />
@@ -39,11 +41,18 @@
         <section class="input-section">
           <div class="input-label-row">
             <label class="input-label" for="item-input">What books have you read?</label>
-            <button class="import-btn" id="import-btn" type="button">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Import Goodreads CSV
-            </button>
-            <input type="file" id="csv-file-input" accept=".csv" style="display:none" />
+            <div class="import-btns" id="import-btns">
+              <button class="import-btn" id="scan-btn" type="button">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                Scan my bookshelf
+              </button>
+              <button class="import-btn" id="import-btn" type="button">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Import Goodreads CSV
+              </button>
+              <input type="file" id="csv-file-input" accept=".csv" style="display:none" />
+              <input type="file" id="shelf-image-input" accept="image/jpeg,image/png,image/webp" style="display:none" />
+            </div>
           </div>
           <div class="input-row">
             <input
@@ -171,12 +180,17 @@
           <ol class="recs-list" id="recs-list"></ol>
 
           <div class="email-cta" id="email-cta" style="display:none">
-            <p class="email-cta-label">Get these recommendations in your inbox</p>
+            <p class="email-cta-label">Save or share your recommendations</p>
             <div class="email-cta-row">
               <input type="email" id="email-input" class="email-input" placeholder="your@email.com" autocomplete="email" />
               <button class="email-send-btn" id="email-send-btn" type="button">Send to my inbox</button>
             </div>
             <p class="email-cta-status" id="email-cta-status"></p>
+            <div class="email-share-divider"><span>or</span></div>
+            <button class="share-card-btn" id="share-card-btn" type="button">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Share my recommendations
+            </button>
           </div>
         </section>
       </main>
@@ -233,6 +247,36 @@
         </div>
       </li>
     </template>
+
+    <!-- Shelf scan tip modal -->
+    <div class="scan-overlay" id="shelf-tip-overlay" style="display:none" role="dialog" aria-modal="true" aria-labelledby="shelf-tip-title">
+      <div class="scan-modal scan-tip-modal">
+        <div class="scan-modal-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        </div>
+        <p class="scan-modal-title" id="shelf-tip-title">Scan my bookshelf</p>
+        <p class="scan-modal-tip">Best results: good lighting, camera straight-on to the shelf.</p>
+        <div class="scan-modal-actions">
+          <button class="scan-cancel-btn" id="shelf-tip-cancel" type="button">Cancel</button>
+          <button class="scan-confirm-btn" id="shelf-tip-confirm" type="button">Choose photo</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Shelf review modal -->
+    <div class="scan-overlay" id="shelf-review-overlay" style="display:none" role="dialog" aria-modal="true" aria-labelledby="shelf-review-title">
+      <div class="scan-modal shelf-review-modal">
+        <div class="shelf-review-header">
+          <h3 class="shelf-review-title" id="shelf-review-title">Review detected books</h3>
+          <button class="shelf-review-close" id="shelf-review-close" type="button" aria-label="Close">×</button>
+        </div>
+        <p class="shelf-review-summary" id="shelf-review-summary"></p>
+        <ul class="shelf-review-list" id="shelf-review-list"></ul>
+        <div class="shelf-review-footer">
+          <button class="shelf-review-confirm-btn" id="shelf-review-confirm" type="button">Add books</button>
+        </div>
+      </div>
+    </div>
 
     <script type="module" src="/src/app.ts"></script>
   </body>
