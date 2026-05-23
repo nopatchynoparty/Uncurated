@@ -240,7 +240,7 @@ router.post("/email", async (req, res) => {
     await resend.emails.send({
       from: "Uncurated <hello@uncurated.app>",
       to: email,
-      reply_to: "hello@uncurated.app",
+
       subject: `Your Uncurated ${categoryLabel} recommendations`,
       html,
     });

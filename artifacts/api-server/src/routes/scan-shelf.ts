@@ -3,8 +3,10 @@ import Anthropic from "@anthropic-ai/sdk";
 
 const router = Router();
 
-const SCAN_PROMPT =
-  'Look at this bookshelf image carefully. Identify every book title and author you can read clearly from the spines. Only include books you can read with reasonable confidence — do not guess at unclear text. Return ONLY valid JSON: { "books": [{"title": "...", "author": "...", "confidence": "high" or "medium"}], "unreadable_count": 5 }';
+const MODEL = "claude-sonnet-4-6";
+
+const SCAN_SYSTEM =
+  "Look at this bookshelf image carefully. Identify every book title and author you can read clearly from the spines. Only include books you can read with reasonable confidence — do not guess at unclear text. Return ONLY valid JSON: { \"books\": [{\"title\": \"...\", \"author\": \"...\", \"confidence\": \"high\" or \"medium\"}], \"unreadable_count\": 5 }";
 
 interface ScanBook {
   title: string;
@@ -17,9 +19,18 @@ interface ScanResult {
   unreadable_count: number;
 }
 
-router.post("/scan-shelf", async (req, res) => {
+// Singleton — one HTTP client for the lifetime of the process
+let _client: Anthropic | null = null;
+function getClient(): Anthropic | null {
   const apiKey = process.env["CLAUDE_API_KEY"];
-  if (!apiKey) {
+  if (!apiKey) return null;
+  if (!_client) _client = new Anthropic({ apiKey });
+  return _client;
+}
+
+router.post("/scan-shelf", async (req, res) => {
+  const client = getClient();
+  if (!client) {
     res.status(500).json({ error: "CLAUDE_API_KEY is not configured." });
     return;
   }
@@ -46,12 +57,11 @@ router.post("/scan-shelf", async (req, res) => {
     return;
   }
 
-  const client = new Anthropic({ apiKey });
-
   try {
     const message = await client.messages.create({
-      model: "claude-sonnet-4-5",
-      max_tokens: 2048,
+      model: MODEL,
+      max_tokens: 512,
+      system: [{ type: "text", text: SCAN_SYSTEM, cache_control: { type: "ephemeral" } }],
       messages: [
         {
           role: "user",
@@ -60,7 +70,6 @@ router.post("/scan-shelf", async (req, res) => {
               type: "image",
               source: { type: "base64", media_type: mediaType, data: base64Data },
             },
-            { type: "text", text: SCAN_PROMPT },
           ],
         },
       ],

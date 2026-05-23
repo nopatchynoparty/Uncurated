@@ -323,7 +323,6 @@ function renderRecCard(rec: Recommendation): HTMLElement {
 function renderResults(data: ApiResponse): void {
   currentTasteProfile = data.taste_profile;
   currentShortTasteProfile = data.short_taste_profile || "";
-  console.log("[uncurated] short_taste_profile:", data.short_taste_profile ?? "(missing — API did not return field)");
   currentRecs = [...(data.recommendations || [])].sort((a, b) => b.match_score - a.match_score);
   seenTitles.clear();
   currentRecs.forEach((r) => seenTitles.add(r.title.toLowerCase()));
