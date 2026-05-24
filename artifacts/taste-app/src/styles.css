@@ -209,6 +209,18 @@ body {
   cursor: not-allowed;
 }
 
+.import-btn-spinner {
+  width: 11px;
+  height: 11px;
+  border: 1.5px solid transparent;
+  border-top-color: currentColor;
+  border-right-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
 .input-row {
   display: flex;
   gap: 8px;
@@ -343,6 +355,21 @@ body {
 .cta-row {
   display: flex;
   justify-content: center;
+}
+
+.cta-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.find-status {
+  font-size: 13px;
+  color: var(--text-faint);
+  margin: 0;
+  min-height: 18px;
+  text-align: center;
 }
 
 .find-btn {
@@ -779,10 +806,13 @@ body {
 .example-section {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  opacity: 0.7;
+  gap: 18px;
   pointer-events: none;
   user-select: none;
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 20px 22px 22px;
+  opacity: 0.85;
 }
 
 .example-label-row {
@@ -793,10 +823,10 @@ body {
 }
 
 .example-label-tag {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   color: var(--text-faint);
   background: var(--surface-2);
   border: 1px solid var(--border);
@@ -808,6 +838,13 @@ body {
 .example-input-summary {
   font-size: 12px;
   color: var(--text-faint);
+  font-style: italic;
+}
+
+.example-intro {
+  font-size: 13px;
+  color: var(--text-faint);
+  margin: 0;
 }
 
 .example-recs-list {

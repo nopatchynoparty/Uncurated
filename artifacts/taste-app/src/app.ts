@@ -123,6 +123,7 @@ const emailInput = document.getElementById("email-input") as HTMLInputElement;
 const emailSendBtn = document.getElementById("email-send-btn") as HTMLButtonElement;
 const emailStatus = document.getElementById("email-cta-status") as HTMLElement;
 const importBtns = document.getElementById("import-btns") as HTMLElement;
+const findStatus = document.getElementById("find-status") as HTMLElement;
 
 // Shelf scanner elements
 const scanBtn = document.getElementById("scan-btn") as HTMLButtonElement;
@@ -142,6 +143,10 @@ const shareCardBtn = document.getElementById("share-card-btn") as HTMLButtonElem
 
 function generateId(): string {
   return Math.random().toString(36).slice(2, 9);
+}
+
+function getCssVar(name: string): string {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
 
 function switchCategory(cat: Category): void {
@@ -449,6 +454,7 @@ async function fetchRecommendations(): Promise<void> {
   findBtn.disabled = true;
   findBtnText.textContent = "Thinking…";
   findLoader.classList.add("visible");
+  findStatus.textContent = "Analysing your taste…";
   resultsSection.style.display = "none";
 
   document.querySelector(".error-banner")?.remove();
@@ -481,6 +487,7 @@ async function fetchRecommendations(): Promise<void> {
     findBtn.disabled = false;
     findBtnText.textContent = "Find my recommendations";
     findLoader.classList.remove("visible");
+    findStatus.textContent = "";
   }
 }
 
@@ -658,7 +665,7 @@ async function resizeImageForScan(file: File): Promise<string> {
 async function handleShelfScan(file: File): Promise<void> {
   scanBtn.disabled = true;
   const origContent = scanBtn.innerHTML;
-  scanBtn.textContent = "Reading your bookshelf…";
+  scanBtn.innerHTML = `<span class="import-btn-spinner" aria-hidden="true"></span>Scanning…`;
 
   try {
     const imageData = await resizeImageForScan(file);
@@ -838,9 +845,13 @@ function truncateAtWordBoundary(text: string, maxChars: number): string {
 }
 
 function buildShareCardEl(profileText: string, recs: Recommendation[]): HTMLElement {
+  const bg = getCssVar("--bg");
+  const textMuted = getCssVar("--text-muted");
+  const border = getCssVar("--border");
+
   // Outer wrapper — exactly 390×844px (Instagram Stories); overflow:hidden hard-clips any overflow
   const wrap = document.createElement("div");
-  wrap.style.cssText = "position:absolute;left:-9999px;top:0;width:390px;height:844px;overflow:hidden;background:#0f0f0f;padding:64px 28px 32px;box-sizing:border-box;";
+  wrap.style.cssText = `position:absolute;left:-9999px;top:0;width:390px;height:844px;overflow:hidden;background:${bg};padding:64px 28px 32px;box-sizing:border-box;`;
 
   // ── Branding header ───────────────────────────────────────────────────
   const header = document.createElement("div");
@@ -866,7 +877,7 @@ function buildShareCardEl(profileText: string, recs: Recommendation[]): HTMLElem
 
   const tagline = document.createElement("p");
   tagline.textContent = "No algorithms. No sponsors. Just honest recommendations.";
-  tagline.style.cssText = "margin:0 0 14px;font-size:11px;color:#888;line-height:1.4;";
+  tagline.style.cssText = `margin:0 0 14px;font-size:11px;color:${textMuted};line-height:1.4;`;
   header.appendChild(tagline);
 
   const sep = document.createElement("div");
@@ -969,7 +980,7 @@ function buildShareCardEl(profileText: string, recs: Recommendation[]): HTMLElem
 
   // ── Footer URL ────────────────────────────────────────────────────────
   const divider = document.createElement("div");
-  divider.style.cssText = "height:1px;background:#2a2a2a;margin-bottom:14px;";
+  divider.style.cssText = `height:1px;background:${border};margin-bottom:14px;`;
   wrap.appendChild(divider);
 
   const footerUrl = document.createElement("p");
@@ -1007,7 +1018,7 @@ async function generateShareCard(): Promise<void> {
       const canvas = await html2canvas(cardEl, {
         scale: 2,
         useCORS: true,
-        backgroundColor: "#0F0F0F",
+        backgroundColor: getCssVar("--bg"),
         logging: false,
         width: 390,
         height: 844,
@@ -1074,6 +1085,7 @@ async function sendEmail(): Promise<void> {
         taste_profile: currentTasteProfile,
         recommendations: currentRecs,
         category: activeCategory,
+        colorScheme: window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark",
       }),
     });
 

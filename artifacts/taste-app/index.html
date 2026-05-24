@@ -87,11 +87,12 @@
           </div>
         </section>
 
-        <section class="example-section" id="example-section">
+        <section class="example-section" id="example-section" aria-label="Example output preview">
           <div class="example-label-row">
-            <span class="example-label-tag">Example output</span>
+            <span class="example-label-tag">Example — not your results</span>
             <span class="example-input-summary">Harry Potter (loved) · The Da Vinci Code (loved) · Gone Girl (liked) · Twilight (meh)</span>
           </div>
+          <p class="example-intro">Add your books above to get your own personalised profile and recommendations.</p>
 
           <div class="taste-profile-card">
             <div class="taste-profile-header">
@@ -158,10 +159,13 @@
         </section>
 
         <div class="cta-row" id="cta-row" style="display:none">
-          <button class="find-btn" id="find-btn">
-            <span class="find-btn-text">Find my recommendations</span>
-            <span class="find-btn-loader" id="find-loader" aria-hidden="true"></span>
-          </button>
+          <div class="cta-inner">
+            <button class="find-btn" id="find-btn">
+              <span class="find-btn-text">Find my recommendations</span>
+              <span class="find-btn-loader" id="find-loader" aria-hidden="true"></span>
+            </button>
+            <p class="find-status" id="find-status"></p>
+          </div>
         </div>
 
         <section class="results-section" id="results-section" style="display:none">

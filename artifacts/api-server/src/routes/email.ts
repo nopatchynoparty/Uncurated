@@ -21,7 +21,34 @@ interface EmailRequest {
   taste_profile: string;
   recommendations: Recommendation[];
   category: string;
+  colorScheme?: "light" | "dark";
 }
+
+interface EmailColors {
+  bodyBg: string;
+  surface: string;
+  surface2: string;
+  border: string;
+  text: string;
+  textMuted: string;
+  textFaint: string;
+  textWhy: string;
+  accent: string;
+  btnText: string;
+  logoUn: string;
+}
+
+const DARK_COLORS: EmailColors = {
+  bodyBg: "#0F0F0F", surface: "#1A1A1A", surface2: "#222222", border: "#2A2A2A",
+  text: "#F5F5F5", textMuted: "#888888", textFaint: "#555555", textWhy: "#AAAAAA",
+  accent: "#F5A623", btnText: "#0F0F0F", logoUn: "#888888",
+};
+
+const LIGHT_COLORS: EmailColors = {
+  bodyBg: "#f5f5f2", surface: "#ffffff", surface2: "#f0f0ec", border: "#e0e0d8",
+  text: "#111111", textMuted: "#666666", textFaint: "#aaaaaa", textWhy: "#666666",
+  accent: "#f5a623", btnText: "#0f0f0f", logoUn: "#888888",
+};
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -49,16 +76,16 @@ function isTrustedUrl(url: string): boolean {
   }
 }
 
-function buildRecCard(rec: Recommendation, linkText: string | null): string {
+function buildRecCard(rec: Recommendation, linkText: string | null, c: EmailColors): string {
   const score = Math.round(typeof rec.match_score === "number" ? rec.match_score : Number(rec.match_score));
   const safeLink = isTrustedUrl(rec.amazon_search) ? rec.amazon_search : null;
 
   const buttonHtml = linkText && safeLink ? `
               <table role="presentation" cellpadding="0" cellspacing="0" style="margin-top: 16px;">
                 <tr>
-                  <td style="background-color: #F5A623; border-radius: 6px;">
+                  <td style="background-color: ${c.accent}; border-radius: 6px;">
                     <a href="${safeLink}" target="_blank" rel="noopener noreferrer"
-                       style="display: inline-block; background-color: #F5A623; border-radius: 6px; color: #0F0F0F; font-family: 'DM Sans', Arial, Helvetica, sans-serif; font-size: 14px; font-weight: 600; padding: 10px 20px; text-decoration: none; mso-padding-alt: 0; text-align: center;">
+                       style="display: inline-block; background-color: ${c.accent}; border-radius: 6px; color: ${c.btnText}; font-family: 'DM Sans', Arial, Helvetica, sans-serif; font-size: 14px; font-weight: 600; padding: 10px 20px; text-decoration: none; mso-padding-alt: 0; text-align: center;">
                       ${escapeHtml(linkText)} &rarr;
                     </a>
                   </td>
@@ -69,28 +96,28 @@ function buildRecCard(rec: Recommendation, linkText: string | null): string {
           <!-- Rec card -->
           <tr>
             <td style="padding-bottom: 16px;">
-              <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background-color: #1A1A1A; border-radius: 10px; border: 1px solid #2A2A2A;">
+              <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background-color: ${c.surface}; border-radius: 10px; border: 1px solid ${c.border};">
                 <tr>
                   <td style="padding: 24px;">
                     <!-- Title + score row -->
                     <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
                       <tr>
                         <td style="vertical-align: top; padding-right: 16px;">
-                          <p style="font-family: 'DM Serif Display', Georgia, 'Times New Roman', serif; font-size: 20px; font-weight: 400; color: #F5F5F5; margin: 0 0 5px 0; line-height: 1.3;">${escapeHtml(rec.title)}</p>
-                          <p style="font-family: 'DM Sans', Arial, Helvetica, sans-serif; color: #888888; font-size: 14px; margin: 0;">${escapeHtml(rec.author)}</p>
+                          <p style="font-family: 'DM Serif Display', Georgia, 'Times New Roman', serif; font-size: 20px; font-weight: 400; color: ${c.text}; margin: 0 0 5px 0; line-height: 1.3;">${escapeHtml(rec.title)}</p>
+                          <p style="font-family: 'DM Sans', Arial, Helvetica, sans-serif; color: ${c.textMuted}; font-size: 14px; margin: 0;">${escapeHtml(rec.author)}</p>
                         </td>
                         <td style="text-align: right; vertical-align: top; white-space: nowrap; width: 64px;">
-                          <p style="font-family: 'DM Sans', Arial, Helvetica, sans-serif; color: #F5A623; font-size: 26px; font-weight: 700; margin: 0; line-height: 1;">${score}%</p>
-                          <p style="font-family: 'DM Sans', Arial, Helvetica, sans-serif; color: #555555; font-size: 10px; margin: 2px 0 0 0; text-transform: uppercase; letter-spacing: 1.5px;">match</p>
+                          <p style="font-family: 'DM Sans', Arial, Helvetica, sans-serif; color: ${c.accent}; font-size: 26px; font-weight: 700; margin: 0; line-height: 1;">${score}%</p>
+                          <p style="font-family: 'DM Sans', Arial, Helvetica, sans-serif; color: ${c.textFaint}; font-size: 10px; margin: 2px 0 0 0; text-transform: uppercase; letter-spacing: 1.5px;">match</p>
                         </td>
                       </tr>
                     </table>
                     <!-- Vibe tag -->
                     <p style="margin: 14px 0 0 0; font-family: 'DM Sans', Arial, Helvetica, sans-serif;">
-                      <span style="display: inline; background-color: #222222; color: #F5A623; font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 99px; border: 1px solid #2A2A2A;">${escapeHtml(rec.vibe)}</span>
+                      <span style="display: inline; background-color: ${c.surface2}; color: ${c.accent}; font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 99px; border: 1px solid ${c.border};">${escapeHtml(rec.vibe)}</span>
                     </p>
                     <!-- Why -->
-                    <p style="font-family: 'DM Sans', Arial, Helvetica, sans-serif; color: #AAAAAA; font-size: 14px; line-height: 1.7; margin: 12px 0 0 0;">${escapeHtml(rec.why)}</p>
+                    <p style="font-family: 'DM Sans', Arial, Helvetica, sans-serif; color: ${c.textWhy}; font-size: 14px; line-height: 1.7; margin: 12px 0 0 0;">${escapeHtml(rec.why)}</p>
                     ${buttonHtml}
                   </td>
                 </tr>
@@ -99,13 +126,15 @@ function buildRecCard(rec: Recommendation, linkText: string | null): string {
           </tr>`;
 }
 
-function buildEmailHtml(tasteProfile: string, recs: Recommendation[], category: string): string {
+function buildEmailHtml(tasteProfile: string, recs: Recommendation[], category: string, colorScheme: "light" | "dark" = "dark"): string {
+  const c = colorScheme === "light" ? LIGHT_COLORS : DARK_COLORS;
+
   const linkText =
     category === "books" ? "Find on Amazon"
     : category === "podcasts" ? "Find on Spotify"
     : null;
 
-  const recCardsHtml = recs.map((rec) => buildRecCard(rec, linkText)).join("\n");
+  const recCardsHtml = recs.map((rec) => buildRecCard(rec, linkText, c)).join("\n");
 
   const subjectCategory =
     category === "books" ? "book"
@@ -135,8 +164,8 @@ function buildEmailHtml(tasteProfile: string, recs: Recommendation[], category: 
     }
   </style>
 </head>
-<body style="background-color: #0F0F0F; margin: 0; padding: 0; width: 100%; min-width: 100%; font-family: 'DM Sans', Arial, Helvetica, sans-serif; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;">
-  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background-color: #0F0F0F; border-collapse: collapse;">
+<body style="background-color: ${c.bodyBg}; margin: 0; padding: 0; width: 100%; min-width: 100%; font-family: 'DM Sans', Arial, Helvetica, sans-serif; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;">
+  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background-color: ${c.bodyBg}; border-collapse: collapse;">
     <tr>
       <td align="center" class="mobile-pad" style="padding: 48px 24px 56px;">
 
@@ -145,21 +174,21 @@ function buildEmailHtml(tasteProfile: string, recs: Recommendation[], category: 
           <!-- ── Header ── -->
           <tr>
             <td style="text-align: center; padding-bottom: 48px;">
-              <h1 style="font-family: 'DM Serif Display', Georgia, 'Times New Roman', serif; font-size: 40px; font-weight: 400; color: #F5F5F5; margin: 0 0 10px 0; letter-spacing: -0.5px; line-height: 1.1;">
-                <span style="text-decoration: line-through; text-decoration-color: #F5A623; color: #888888;">Un</span>curated
+              <h1 style="font-family: 'DM Serif Display', Georgia, 'Times New Roman', serif; font-size: 40px; font-weight: 400; color: ${c.text}; margin: 0 0 10px 0; letter-spacing: -0.5px; line-height: 1.1;">
+                <span style="text-decoration: line-through; text-decoration-color: ${c.accent}; color: ${c.logoUn};">Un</span>curated
               </h1>
-              <p style="font-family: 'DM Sans', Arial, Helvetica, sans-serif; color: #888888; font-size: 14px; margin: 0; line-height: 1.5;">No algorithms. No sponsors. Just honest recommendations.</p>
+              <p style="font-family: 'DM Sans', Arial, Helvetica, sans-serif; color: ${c.textMuted}; font-size: 14px; margin: 0; line-height: 1.5;">No algorithms. No sponsors. Just honest recommendations.</p>
             </td>
           </tr>
 
           <!-- ── Taste Profile ── -->
           <tr>
             <td style="padding-bottom: 36px;">
-              <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background-color: #1A1A1A; border-radius: 10px; border: 1px solid #2A2A2A; border-collapse: collapse;">
+              <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background-color: ${c.surface}; border-radius: 10px; border: 1px solid ${c.border}; border-collapse: collapse;">
                 <tr>
                   <td style="padding: 26px 28px;">
-                    <p style="font-family: 'DM Sans', Arial, Helvetica, sans-serif; color: #F5A623; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; margin: 0 0 14px 0; font-weight: 600;">Your Uncurated Profile</p>
-                    <p style="font-family: 'DM Sans', Arial, Helvetica, sans-serif; color: #F5F5F5; font-size: 15px; line-height: 1.7; margin: 0;">${escapeHtml(tasteProfile)}</p>
+                    <p style="font-family: 'DM Sans', Arial, Helvetica, sans-serif; color: ${c.accent}; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; margin: 0 0 14px 0; font-weight: 600;">Your Uncurated Profile</p>
+                    <p style="font-family: 'DM Sans', Arial, Helvetica, sans-serif; color: ${c.text}; font-size: 15px; line-height: 1.7; margin: 0;">${escapeHtml(tasteProfile)}</p>
                   </td>
                 </tr>
               </table>
@@ -169,7 +198,7 @@ function buildEmailHtml(tasteProfile: string, recs: Recommendation[], category: 
           <!-- ── Section heading ── -->
           <tr>
             <td style="padding-bottom: 20px;">
-              <h2 style="font-family: 'DM Serif Display', Georgia, 'Times New Roman', serif; font-size: 28px; font-weight: 400; color: #F5F5F5; margin: 0; line-height: 1.2;">Recommended for you</h2>
+              <h2 style="font-family: 'DM Serif Display', Georgia, 'Times New Roman', serif; font-size: 28px; font-weight: 400; color: ${c.text}; margin: 0; line-height: 1.2;">Recommended for you</h2>
             </td>
           </tr>
 
@@ -180,7 +209,7 @@ function buildEmailHtml(tasteProfile: string, recs: Recommendation[], category: 
           <tr>
             <td style="padding-top: 8px; padding-bottom: 28px;">
               <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse: collapse;">
-                <tr><td style="border-top: 1px solid #2A2A2A; height: 1px; font-size: 0; line-height: 0;">&nbsp;</td></tr>
+                <tr><td style="border-top: 1px solid ${c.border}; height: 1px; font-size: 0; line-height: 0;">&nbsp;</td></tr>
               </table>
             </td>
           </tr>
@@ -188,8 +217,8 @@ function buildEmailHtml(tasteProfile: string, recs: Recommendation[], category: 
           <!-- ── Footer ── -->
           <tr>
             <td style="text-align: center;">
-              <p style="font-family: 'DM Sans', Arial, Helvetica, sans-serif; color: #555555; font-size: 13px; margin: 0; line-height: 1.7;">
-                Powered by Claude &nbsp;&middot;&nbsp; No affiliate influence on recommendations &nbsp;&middot;&nbsp; <a href="https://uncurated.app" style="color: #555555; text-decoration: underline;">uncurated.app</a>
+              <p style="font-family: 'DM Sans', Arial, Helvetica, sans-serif; color: ${c.textFaint}; font-size: 13px; margin: 0; line-height: 1.7;">
+                Powered by Claude &nbsp;&middot;&nbsp; No affiliate influence on recommendations &nbsp;&middot;&nbsp; <a href="https://uncurated.app" style="color: ${c.textFaint}; text-decoration: underline;">uncurated.app</a>
               </p>
             </td>
           </tr>
@@ -209,7 +238,7 @@ router.post("/email", async (req, res) => {
     return;
   }
 
-  const { email, taste_profile, recommendations, category } = req.body as EmailRequest;
+  const { email, taste_profile, recommendations, category, colorScheme } = req.body as EmailRequest;
 
   if (!email || !EMAIL_RE.test(email)) {
     res.status(400).json({ error: "Please provide a valid email address." });
@@ -233,7 +262,7 @@ router.post("/email", async (req, res) => {
     : category === "podcasts" ? "podcast"
     : "watch";
 
-  const html = buildEmailHtml(taste_profile, recommendations, category ?? "books");
+  const html = buildEmailHtml(taste_profile, recommendations, category ?? "books", colorScheme === "light" ? "light" : "dark");
 
   const resend = new Resend(apiKey);
   try {

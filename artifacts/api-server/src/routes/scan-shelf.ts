@@ -6,7 +6,7 @@ const router = Router();
 const MODEL = "claude-sonnet-4-6";
 
 const SCAN_SYSTEM =
-  "Look at this bookshelf image carefully. Identify every book title and author you can read clearly from the spines. Only include books you can read with reasonable confidence — do not guess at unclear text. Return ONLY valid JSON: { \"books\": [{\"title\": \"...\", \"author\": \"...\", \"confidence\": \"high\" or \"medium\"}], \"unreadable_count\": 5 }";
+  "You are scanning a bookshelf photo. Identify every book title and author visible on the spines. Respond with ONLY a JSON object — no explanation, no markdown, no code fences. Your response must start with { and end with }. Use this exact format: {\"books\": [{\"title\": \"Title\", \"author\": \"Author\", \"confidence\": \"high\"}], \"unreadable_count\": 0}. Set confidence to \"high\" for clearly readable spines and \"medium\" for partially readable ones. Set unreadable_count to the number of spines you cannot read at all. Do not include any text before the opening { or after the closing }.";
 
 interface ScanBook {
   title: string;
@@ -76,7 +76,9 @@ router.post("/scan-shelf", async (req, res) => {
     });
 
     const raw = message.content[0].type === "text" ? message.content[0].text : "";
-    const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim();
+    const start = raw.indexOf("{");
+    const end = raw.lastIndexOf("}");
+    const cleaned = start !== -1 && end > start ? raw.slice(start, end + 1) : raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
 
     let parsed: ScanResult;
     try {
