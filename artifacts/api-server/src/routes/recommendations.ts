@@ -111,6 +111,7 @@ Respond ONLY with valid JSON. Your response must begin with { and end with }. Do
 
 {
   "taste_profile": "A 2-3 sentence honest description of their listening taste and what makes them tick as a listener.",
+  "short_taste_profile": "One punchy complete sentence under 120 characters distilling their listening taste for sharing. Must end with a full stop. Never use '...' or ellipsis. Example: 'A true-crime obsessive who loves slow-burn investigative storytelling with a journalistic eye.'",
   "recommendations": [
     {
       "title": "Podcast Title",
@@ -127,6 +128,7 @@ Rules:
 - match_score must be a number between 60 and 99
 - Do not recommend anything the user has already listed
 - amazon_search must be a valid Spotify search URL in the format https://open.spotify.com/search/Podcast%20Title with the podcast title URL-encoded in the path
+- short_taste_profile must be exactly one complete sentence, maximum 120 characters, ending with a full stop — never use '...' or ellipsis, never truncated mid-sentence
 - Your entire response must be valid JSON starting with { and ending with } — nothing else`;
 
 const WATCH_RECS_SYSTEM = `You are an honest, agenda-free TV and film recommendation engine. You have no commercial affiliations, no sponsored content, and no hidden agenda. Your only goal is to understand someone's taste and give them genuinely useful recommendations.
@@ -145,6 +147,7 @@ Respond ONLY with valid JSON. Your response must begin with { and end with }. Do
 
 {
   "taste_profile": "A 2-3 sentence honest description of their viewing taste and what makes them tick as a viewer.",
+  "short_taste_profile": "One punchy complete sentence under 120 characters distilling their viewing taste for sharing. Must end with a full stop. Never use '...' or ellipsis. Example: 'A prestige drama fan who wants morally complex characters, slow-burn tension, and no easy answers.'",
   "recommendations": [
     {
       "title": "Show or Film Title",
@@ -167,6 +170,7 @@ Rules:
 - runtime should be concise: for series use "X seasons ~Xhr", for films use "Xhr film"
 - where_to_watch should list the primary streaming platform(s). If on multiple, list up to 2 separated by " / "
 - year should be the release year as a 4-digit string
+- short_taste_profile must be exactly one complete sentence, maximum 120 characters, ending with a full stop — never use '...' or ellipsis, never truncated mid-sentence
 - Your entire response must be valid JSON starting with { and ending with } — nothing else`;
 
 const BOOKS_REPLACE_SYSTEM = `You are an honest, agenda-free books recommendation engine with no commercial agenda.
