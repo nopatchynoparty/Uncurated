@@ -112,6 +112,14 @@ function buildRecCard(rec: Recommendation, linkText: string | null, c: EmailColo
                         </td>
                       </tr>
                     </table>
+                    <!-- Watch metadata (format / runtime / platform / year) -->
+                    ${rec.format || rec.runtime || rec.where_to_watch || rec.year ? `
+                    <p style="margin: 12px 0 0 0; font-family: 'DM Sans', Arial, Helvetica, sans-serif; line-height: 2;">
+                      ${rec.format ? `<span style="display: inline-block; background-color: ${c.surface2}; color: ${c.textFaint}; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 8px; border-radius: 99px; border: 1px solid ${c.border}; margin-right: 4px;">${escapeHtml(rec.format)}</span>` : ""}
+                      ${rec.runtime ? `<span style="display: inline-block; background-color: ${c.surface2}; color: ${c.textMuted}; font-size: 11px; padding: 2px 8px; border-radius: 99px; border: 1px solid ${c.border}; margin-right: 4px;">${escapeHtml(rec.runtime)}</span>` : ""}
+                      ${rec.where_to_watch ? `<span style="display: inline-block; background-color: ${c.surface2}; color: ${c.textMuted}; font-size: 11px; padding: 2px 8px; border-radius: 99px; border: 1px solid ${c.border}; margin-right: 4px;">${escapeHtml(rec.where_to_watch)}</span>` : ""}
+                      ${rec.year ? `<span style="display: inline-block; background-color: ${c.surface2}; color: ${c.textMuted}; font-size: 11px; padding: 2px 8px; border-radius: 99px; border: 1px solid ${c.border};">${escapeHtml(rec.year)}</span>` : ""}
+                    </p>` : ""}
                     <!-- Vibe tag -->
                     <p style="margin: 14px 0 0 0; font-family: 'DM Sans', Arial, Helvetica, sans-serif;">
                       <span style="display: inline; background-color: ${c.surface2}; color: ${c.accent}; font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 99px; border: 1px solid ${c.border};">${escapeHtml(rec.vibe)}</span>
@@ -139,7 +147,7 @@ function buildEmailHtml(tasteProfile: string, recs: Recommendation[], category: 
   const subjectCategory =
     category === "books" ? "book"
     : category === "podcasts" ? "podcast"
-    : "watch";
+    : "viewing";
 
   return `<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
@@ -260,7 +268,7 @@ router.post("/email", async (req, res) => {
   const categoryLabel =
     category === "books" ? "book"
     : category === "podcasts" ? "podcast"
-    : "watch";
+    : "viewing";
 
   const html = buildEmailHtml(taste_profile, recommendations, category ?? "books", colorScheme === "light" ? "light" : "dark");
 
