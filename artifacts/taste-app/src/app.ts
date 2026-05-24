@@ -870,7 +870,7 @@ function buildShareCardEl(profileText: string, recs: Recommendation[]): HTMLElem
   unSpan.appendChild(strike);
   const curatedSpan = document.createElement("span");
   curatedSpan.textContent = "curated";
-  curatedSpan.style.color = "#f5f5f5";
+  curatedSpan.style.color = getCssVar("--text");
   logoDiv.appendChild(unSpan);
   logoDiv.appendChild(curatedSpan);
   header.appendChild(logoDiv);
@@ -888,7 +888,7 @@ function buildShareCardEl(profileText: string, recs: Recommendation[]): HTMLElem
   // ── Profile card ──────────────────────────────────────────────────────
   const profileCard = document.createElement("div");
   profileCard.className = "taste-profile-card";
-  profileCard.style.cssText = "margin-bottom:20px;padding:18px 20px;";
+  profileCard.style.cssText = "margin-bottom:16px;padding:15px 18px;";
 
   const profileCardHeader = document.createElement("div");
   profileCardHeader.className = "taste-profile-header";
@@ -917,12 +917,12 @@ function buildShareCardEl(profileText: string, recs: Recommendation[]): HTMLElem
   // ── Rec cards ─────────────────────────────────────────────────────────
   const recsList = document.createElement("ol");
   recsList.className = "recs-list";
-  recsList.style.cssText = "margin-bottom:20px;gap:12px;";
+  recsList.style.cssText = "margin-bottom:16px;gap:8px;";
 
   recs.forEach((rec) => {
     const li = document.createElement("li");
     li.className = "rec-card";
-    li.style.cssText = "padding:16px 18px;gap:8px;";
+    li.style.cssText = "padding:13px 16px;gap:6px;";
 
     const recHeader = document.createElement("div");
     recHeader.className = "rec-header";
@@ -933,8 +933,8 @@ function buildShareCardEl(profileText: string, recs: Recommendation[]): HTMLElem
 
     const titleEl = document.createElement("span");
     titleEl.className = "rec-title";
-    titleEl.style.fontSize = "22px";
-    titleEl.textContent = rec.title;
+    titleEl.style.fontSize = "18px";
+    titleEl.textContent = truncateAtWordBoundary(rec.title, 42);
     meta.appendChild(titleEl);
 
     const authorEl = document.createElement("span");
