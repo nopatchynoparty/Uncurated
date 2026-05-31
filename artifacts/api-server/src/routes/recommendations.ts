@@ -244,6 +244,7 @@ Rules:
 - match_score must be a number between 60 and 99
 - Do not recommend anything the user has already listed
 - amazon_search must be a valid Spotify search URL in the format https://open.spotify.com/search/Title%20Artist with the title and artist URL-encoded in the path
+- Recommend only albums and artists — do not recommend films, documentaries, concerts, books, or any non-music media
 - short_taste_profile must be exactly one complete sentence, maximum 120 characters, ending with a full stop — never use '...' or ellipsis, never truncated mid-sentence
 - Your entire response must be valid JSON starting with { and ending with } — nothing else`;
 
@@ -543,7 +544,7 @@ router.post("/recommendations", async (req, res) => {
 
     parsed.recommendations = parsed.recommendations.map((rec) => ({
       ...rec,
-      amazon_search: category === "podcasts"
+      amazon_search: category === "podcasts" || category === "music"
         ? sanitizePodcastUrl(rec.amazon_search ?? "", rec.title)
         : category === "watch"
           ? ""

@@ -60,7 +60,7 @@ app.use("/api/recommendations", recsRateLimit);
 app.use("/api/recommendations", concurrencyLimiter);
 app.use("/api", router);
 
-const publicDir = path.join(__dirname, "../public");
+const publicDir = path.join(__dirname, "../../taste-app/dist/public");
 app.use(express.static(publicDir));
 
 app.get(/^(?!\/api).*/, (_req, res) => {
