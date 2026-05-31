@@ -37,18 +37,18 @@ interface ScannedBook {
 type Category = "books" | "podcasts" | "watch" | "music";
 
 const ARCHETYPE_ICONS: Record<string, string> = {
-  "The Dark Escapist": "ti-moon",
-  "The Compulsive Page-Turner": "ti-bolt",
-  "The World-Builder": "ti-planet",
-  "The Reluctant Literary": "ti-book",
-  "The True Crime Mind": "ti-search",
-  "The Intellectual Adventurer": "ti-telescope",
-  "The Comfort Rereader": "ti-heart",
-  "The Historical Immersionist": "ti-clock",
-  "The Concept Reader": "ti-alien",
-  "The Quiet Realist": "ti-eye",
-  "The Epic Completionist": "ti-map",
-  "The Atmosphere Chaser": "ti-sparkles",
+  "The Dark Escapist": "🌙",
+  "The Compulsive Page-Turner": "⚡",
+  "The World-Builder": "🪐",
+  "The Reluctant Literary": "📖",
+  "The True Crime Mind": "🔍",
+  "The Intellectual Adventurer": "🔭",
+  "The Comfort Rereader": "🤍",
+  "The Historical Immersionist": "⏳",
+  "The Concept Reader": "👾",
+  "The Quiet Realist": "👁",
+  "The Epic Completionist": "🗺",
+  "The Atmosphere Chaser": "✨",
 };
 
 let activeCategory: Category = "books";
@@ -190,6 +190,10 @@ function generateId(): string {
 
 function getCssVar(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+function getCurrentTheme(): "light" | "dark" {
+  return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
 }
 
 function clearAll(): void {
@@ -401,7 +405,15 @@ function renderResults(data: ApiResponse): void {
   currentRecs.forEach((r) => seenTitles.add(r.title.toLowerCase()));
 
   if (currentArchetype) {
-    archetypeNameEl.textContent = currentArchetype;
+    archetypeNameEl.innerHTML = "";
+    const archetypeEmoji = ARCHETYPE_ICONS[currentArchetype];
+    if (archetypeEmoji) {
+      const emojiSpan = document.createElement("span");
+      emojiSpan.textContent = archetypeEmoji;
+      emojiSpan.style.marginRight = "8px";
+      archetypeNameEl.appendChild(emojiSpan);
+    }
+    archetypeNameEl.appendChild(document.createTextNode(currentArchetype));
     if (currentArchetypeSecondary) {
       archetypeSecondaryEl.textContent = `with a streak of ${currentArchetypeSecondary}`;
       archetypeSecondaryEl.style.display = "";
@@ -945,7 +957,7 @@ function buildShareCardEl(profileText: string, recs: Recommendation[], archetype
   const textMuted = getCssVar("--text-muted");
   const border = getCssVar("--border");
 
-  // Outer wrapper — exactly 390×844px (Instagram Stories); overflow:hidden hard-clips any overflow
+  // Outer wrapper — exactly 390×700px; overflow:hidden hard-clips any overflow
   const wrap = document.createElement("div");
   wrap.style.cssText = `position:absolute;left:-9999px;top:0;width:390px;height:700px;overflow:hidden;background:${bg};padding:48px 28px 32px;box-sizing:border-box;`;
 
@@ -989,12 +1001,12 @@ function buildShareCardEl(profileText: string, recs: Recommendation[], archetype
     const archetypeEl = document.createElement("h2");
     archetypeEl.style.cssText = `font-family:'DM Serif Display',Georgia,serif;font-size:28px;font-weight:400;line-height:1.2;color:${getCssVar("--text")};margin:0 0 8px;`;
     archetypeEl.innerHTML = "";
-    const cardIconClass = ARCHETYPE_ICONS[archetype];
-    if (cardIconClass) {
-      const cardIcon = document.createElement("i");
-      cardIcon.className = `ti ${cardIconClass}`;
-      cardIcon.style.cssText = "font-family:'tabler-icons';font-style:normal;font-size:1em;vertical-align:middle;margin-right:8px;";
-      archetypeEl.appendChild(cardIcon);
+    const emoji = ARCHETYPE_ICONS[archetype];
+    if (emoji) {
+      const emojiSpan = document.createElement("span");
+      emojiSpan.textContent = emoji;
+      emojiSpan.style.marginRight = "8px";
+      archetypeEl.appendChild(emojiSpan);
     }
     archetypeEl.appendChild(document.createTextNode(archetype));
     archetypeSection.appendChild(archetypeEl);
@@ -1219,7 +1231,7 @@ async function sendEmail(): Promise<void> {
         taste_profile: currentTasteProfile,
         recommendations: currentRecs,
         category: activeCategory,
-        colorScheme: window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark",
+        colorScheme: getCurrentTheme(),
         archetype: currentArchetype || undefined,
         archetype_secondary: currentArchetypeSecondary || undefined,
       }),
