@@ -32,7 +32,7 @@ interface ScannedBook {
   confidence: "high" | "medium";
 }
 
-type Category = "books" | "podcasts" | "watch";
+type Category = "books" | "podcasts" | "watch" | "music";
 
 let activeCategory: Category = "books";
 let watchFormat: "series" | "films" | "both" = "both";
@@ -80,6 +80,15 @@ const CATEGORY_CONFIG: Record<Category, {
     shareByWord: "by",
     minError: "Add at least 3 shows or films to get a good recommendation.",
   },
+  music: {
+    label: "What albums or artists have you loved?",
+    placeholder: "e.g. Radiohead, Bon Iver, The National…",
+    dismissBtn: "I've heard this",
+    linkText: "Find on Spotify →",
+    sharePrefix: "My listener profile:",
+    shareByWord: "by",
+    minError: "Add at least 3 albums or artists to get a good recommendation.",
+  },
 };
 
 const DISMISS_REASONS: Partial<Record<Category, string[]>> = {
@@ -95,6 +104,12 @@ const DISMISS_REASONS: Partial<Record<Category, string[]>> = {
     "Not available on my platforms",
     "Not my kind of tone",
     "Not interested in the topic",
+  ],
+  music: [
+    "Already know it",
+    "Not my kind of sound",
+    "Too mainstream",
+    "Not interested in the genre",
   ],
 };
 
@@ -238,6 +253,7 @@ function updateCta(): void {
   ctaRow.style.display = items.length >= 1 ? "flex" : "none";
   if (items.length === 0) itemsSection.style.display = "none";
   exampleSection.style.display = items.length === 0 && activeCategory === "books" ? "flex" : "none";
+  findBtn.disabled = items.length < 3;
 }
 
 function fillRecCard(li: HTMLElement, rec: Recommendation): void {
@@ -255,7 +271,7 @@ function fillRecCard(li: HTMLElement, rec: Recommendation): void {
   if (config.linkText) {
     link.textContent = config.linkText;
     link.href = rec.amazon_search ||
-      (activeCategory === "podcasts"
+      (activeCategory === "podcasts" || activeCategory === "music"
         ? `https://open.spotify.com/search/${encodeURIComponent(rec.title)}`
         : `https://www.amazon.co.uk/s?k=${encodeURIComponent(rec.title + " " + (rec.author || ""))}&tag=uncuratedapp-20`);
     link.style.display = "";
@@ -459,6 +475,9 @@ async function fetchRecommendations(): Promise<void> {
 
   document.querySelector(".error-banner")?.remove();
 
+  const t1 = setTimeout(() => { findStatus.textContent = "Matching your taste…"; }, 3000);
+  const t2 = setTimeout(() => { findStatus.textContent = "Nearly there…"; }, 6000);
+
   const recBody: Record<string, unknown> = { items: payload, category: activeCategory };
   if (activeCategory === "watch") {
     recBody.format = watchFormat;
@@ -484,6 +503,8 @@ async function fetchRecommendations(): Promise<void> {
       err instanceof Error ? err.message : "Something went wrong. Please try again.";
     showError(msg);
   } finally {
+    clearTimeout(t1);
+    clearTimeout(t2);
     findBtn.disabled = false;
     findBtnText.textContent = "Find my recommendations";
     findLoader.classList.remove("visible");
@@ -499,8 +520,9 @@ function buildShareText(): string {
       ? `${Math.round(top.match_score)}%`
       : String(top.match_score);
   const config = CATEGORY_CONFIG[activeCategory];
+  const profileText = currentShortTasteProfile || currentTasteProfile;
   return (
-    `${config.sharePrefix} ${currentTasteProfile}\n\n` +
+    `${config.sharePrefix} ${profileText}\n\n` +
     `Top match: ${top.title} ${config.shareByWord} ${top.author} (${score} match) — ${top.vibe}\n\n` +
     `via Uncurated`
   );
@@ -1067,6 +1089,11 @@ async function sendEmail(): Promise<void> {
   const email = emailInput.value.trim();
   if (!email) {
     emailInput.focus();
+    return;
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    emailStatus.textContent = "Please enter a valid email address.";
+    emailStatus.className = "email-cta-status error";
     return;
   }
   if (!currentTasteProfile || currentRecs.length === 0) return;

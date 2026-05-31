@@ -503,7 +503,6 @@ body {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  counter-reset: rec;
 }
 
 .rec-card {
@@ -515,7 +514,6 @@ body {
   flex-direction: column;
   gap: 10px;
   transition: border-color 0.15s, opacity 0.2s;
-  counter-increment: rec;
 }
 
 .rec-card:hover {
@@ -559,11 +557,6 @@ body {
   font-family: var(--font-display);
 }
 
-.rec-title::before {
-  content: counter(rec) ". ";
-  color: var(--text-faint);
-  font-weight: 400;
-}
 
 .rec-author {
   font-size: 13px;
@@ -848,7 +841,6 @@ body {
 }
 
 .example-recs-list {
-  counter-reset: rec;
 }
 
 /* Errors */

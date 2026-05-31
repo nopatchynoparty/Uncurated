@@ -4,9 +4,28 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import path from "path";
 import { fileURLToPath } from "url";
+import rateLimit from "express-rate-limit";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { concurrencyLimiter } from "./lib/concurrency";
+
+const rateLimitMessage = { error: "Too many requests. Please wait a moment before trying again." };
+
+const recsRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: rateLimitMessage,
+});
+
+const replaceRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: rateLimitMessage,
+});
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -36,6 +55,8 @@ app.use(cookieParser());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
+app.use("/api/recommendations/replace", replaceRateLimit);
+app.use("/api/recommendations", recsRateLimit);
 app.use("/api/recommendations", concurrencyLimiter);
 app.use("/api", router);
 

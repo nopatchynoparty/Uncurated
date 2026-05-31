@@ -139,7 +139,7 @@ function buildEmailHtml(tasteProfile: string, recs: Recommendation[], category: 
 
   const linkText =
     category === "books" ? "Find on Amazon"
-    : category === "podcasts" ? "Find on Spotify"
+    : category === "podcasts" || category === "music" ? "Find on Spotify"
     : null;
 
   const recCardsHtml = recs.map((rec) => buildRecCard(rec, linkText, c)).join("\n");
@@ -147,6 +147,7 @@ function buildEmailHtml(tasteProfile: string, recs: Recommendation[], category: 
   const subjectCategory =
     category === "books" ? "book"
     : category === "podcasts" ? "podcast"
+    : category === "music" ? "music"
     : "viewing";
 
   return `<!DOCTYPE html>
@@ -226,7 +227,7 @@ function buildEmailHtml(tasteProfile: string, recs: Recommendation[], category: 
           <tr>
             <td style="text-align: center;">
               <p style="font-family: 'DM Sans', Arial, Helvetica, sans-serif; color: ${c.textFaint}; font-size: 13px; margin: 0; line-height: 1.7;">
-                Powered by Claude &nbsp;&middot;&nbsp; No affiliate influence on recommendations &nbsp;&middot;&nbsp; <a href="https://uncurated.app" style="color: ${c.textFaint}; text-decoration: underline;">uncurated.app</a>
+                Powered by Claude &nbsp;&middot;&nbsp; No affiliate influence on recommendations &nbsp;&middot;&nbsp; <a href="https://uncurated.app" style="color: ${c.textFaint}; text-decoration: underline;">uncurated.app</a><br>This is a one-time email — you won't hear from us again.
               </p>
             </td>
           </tr>
@@ -268,6 +269,7 @@ router.post("/email", async (req, res) => {
   const categoryLabel =
     category === "books" ? "book"
     : category === "podcasts" ? "podcast"
+    : category === "music" ? "music"
     : "viewing";
 
   const html = buildEmailHtml(taste_profile, recommendations, category ?? "books", colorScheme === "light" ? "light" : "dark");
