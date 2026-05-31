@@ -22,6 +22,8 @@ interface EmailRequest {
   recommendations: Recommendation[];
   category: string;
   colorScheme?: "light" | "dark";
+  archetype?: string;
+  archetype_secondary?: string;
 }
 
 interface EmailColors {
@@ -48,6 +50,21 @@ const LIGHT_COLORS: EmailColors = {
   bodyBg: "#f5f5f2", surface: "#ffffff", surface2: "#f0f0ec", border: "#e0e0d8",
   text: "#111111", textMuted: "#666666", textFaint: "#aaaaaa", textWhy: "#666666",
   accent: "#f5a623", btnText: "#0f0f0f", logoUn: "#888888",
+};
+
+const ARCHETYPE_EMAIL_ICONS: Record<string, string> = {
+  "The Dark Escapist": "🌙",
+  "The Compulsive Page-Turner": "⚡",
+  "The World-Builder": "🪐",
+  "The Reluctant Literary": "📖",
+  "The True Crime Mind": "🔍",
+  "The Intellectual Adventurer": "🔭",
+  "The Comfort Rereader": "🤍",
+  "The Historical Immersionist": "⏳",
+  "The Concept Reader": "👾",
+  "The Quiet Realist": "👁",
+  "The Epic Completionist": "🗺",
+  "The Atmosphere Chaser": "✨",
 };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -81,11 +98,11 @@ function buildRecCard(rec: Recommendation, linkText: string | null, c: EmailColo
   const safeLink = isTrustedUrl(rec.amazon_search) ? rec.amazon_search : null;
 
   const buttonHtml = linkText && safeLink ? `
-              <table role="presentation" cellpadding="0" cellspacing="0" style="margin-top: 16px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 16px;">
                 <tr>
                   <td style="background-color: ${c.accent}; border-radius: 6px;">
                     <a href="${safeLink}" target="_blank" rel="noopener noreferrer"
-                       style="display: inline-block; background-color: ${c.accent}; border-radius: 6px; color: ${c.btnText}; font-family: 'DM Sans', Arial, Helvetica, sans-serif; font-size: 14px; font-weight: 600; padding: 10px 20px; text-decoration: none; mso-padding-alt: 0; text-align: center;">
+                       style="display: block; width: 100%; background-color: ${c.accent}; border-radius: 6px; color: ${c.btnText}; font-family: 'DM Sans', Arial, Helvetica, sans-serif; font-size: 14px; font-weight: 600; padding: 12px 20px; text-decoration: none; mso-padding-alt: 0; text-align: center; box-sizing: border-box;">
                       ${escapeHtml(linkText)} &rarr;
                     </a>
                   </td>
@@ -122,7 +139,7 @@ function buildRecCard(rec: Recommendation, linkText: string | null, c: EmailColo
                     </p>` : ""}
                     <!-- Vibe tag -->
                     <p style="margin: 14px 0 0 0; font-family: 'DM Sans', Arial, Helvetica, sans-serif;">
-                      <span style="display: inline; background-color: ${c.surface2}; color: ${c.accent}; font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 99px; border: 1px solid ${c.border};">${escapeHtml(rec.vibe)}</span>
+                      <span style="display: inline; background-color: ${c.surface2}; color: ${c.accent}; font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 99px; border: 1px solid ${c.accent};">${escapeHtml(rec.vibe)}</span>
                     </p>
                     <!-- Why -->
                     <p style="font-family: 'DM Sans', Arial, Helvetica, sans-serif; color: ${c.textWhy}; font-size: 14px; line-height: 1.7; margin: 12px 0 0 0;">${escapeHtml(rec.why)}</p>
@@ -134,7 +151,7 @@ function buildRecCard(rec: Recommendation, linkText: string | null, c: EmailColo
           </tr>`;
 }
 
-function buildEmailHtml(tasteProfile: string, recs: Recommendation[], category: string, colorScheme: "light" | "dark" = "dark"): string {
+function buildEmailHtml(tasteProfile: string, recs: Recommendation[], category: string, colorScheme: "light" | "dark" = "dark", archetype?: string, archetypeSecondary?: string): string {
   const c = colorScheme === "light" ? LIGHT_COLORS : DARK_COLORS;
 
   const linkText =
@@ -189,6 +206,17 @@ function buildEmailHtml(tasteProfile: string, recs: Recommendation[], category: 
               <p style="font-family: 'DM Sans', Arial, Helvetica, sans-serif; color: ${c.textMuted}; font-size: 14px; margin: 0; line-height: 1.5;">No algorithms. No sponsors. Just honest recommendations.</p>
             </td>
           </tr>
+
+          <!-- ── Archetype ── -->
+          ${archetype ? `
+          <tr>
+            <td style="text-align: center; padding-bottom: 32px;">
+              <p style="font-size: 32px; margin: 0 0 8px 0; line-height: 1;">${escapeHtml(ARCHETYPE_EMAIL_ICONS[archetype] ?? "")}</p>
+              <h2 style="font-family: 'DM Serif Display', Georgia, 'Times New Roman', serif; font-size: 32px; font-weight: 400; color: ${c.text}; margin: 0 0 6px 0; line-height: 1.2;">${escapeHtml(archetype)}</h2>
+              ${archetypeSecondary ? `<p style="font-family: 'DM Sans', Arial, Helvetica, sans-serif; font-size: 14px; color: ${c.textMuted}; margin: 0;">with a streak of ${escapeHtml(archetypeSecondary)}</p>` : ""}
+            </td>
+          </tr>
+          ` : ""}
 
           <!-- ── Taste Profile ── -->
           <tr>
@@ -247,7 +275,7 @@ router.post("/email", async (req, res) => {
     return;
   }
 
-  const { email, taste_profile, recommendations, category, colorScheme } = req.body as EmailRequest;
+  const { email, taste_profile, recommendations, category, colorScheme, archetype, archetype_secondary } = req.body as EmailRequest;
 
   if (!email || !EMAIL_RE.test(email)) {
     res.status(400).json({ error: "Please provide a valid email address." });
@@ -272,7 +300,7 @@ router.post("/email", async (req, res) => {
     : category === "music" ? "music"
     : "viewing";
 
-  const html = buildEmailHtml(taste_profile, recommendations, category ?? "books", colorScheme === "light" ? "light" : "dark");
+  const html = buildEmailHtml(taste_profile, recommendations, category ?? "books", colorScheme === "light" ? "light" : "dark", archetype, archetype_secondary);
 
   const resend = new Resend(apiKey);
   try {

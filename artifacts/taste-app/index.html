@@ -21,6 +21,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
   </head>
   <body>
     <div class="app">
@@ -34,9 +35,9 @@
       <main class="main">
         <section class="categories">
           <button class="category-btn active" data-category="books">Books</button>
-          <button class="category-btn coming-soon" disabled>Podcasts <span class="badge">Soon</span></button>
-          <button class="category-btn coming-soon" disabled>Watch <span class="badge">Soon</span></button>
-          <button class="category-btn coming-soon" disabled>Music <span class="badge">Soon</span></button>
+          <button class="category-btn" data-category="podcasts">Podcasts</button>
+          <button class="category-btn" data-category="watch">Watch</button>
+          <button class="category-btn" data-category="music">Music</button>
         </section>
 
         <section class="input-section">
@@ -97,7 +98,7 @@
 
           <div class="taste-profile-card">
             <div class="taste-profile-header">
-              <h2 class="taste-profile-title">Your Uncurated Profile</h2>
+              <h2 class="taste-profile-title">Your reading profile</h2>
             </div>
             <p class="taste-profile-text">This reader gravitates toward fast-paced, plot-driven narratives with strong hooks and accessible writing. They love stories that blend mystery, intrigue, and page-turning momentum, but aren't drawn to romance-heavy paranormal fiction, suggesting they prefer sharper, more grounded thriller elements over atmospheric fantasy.</p>
           </div>
@@ -166,13 +167,19 @@
               <span class="find-btn-loader" id="find-loader" aria-hidden="true"></span>
             </button>
             <p class="find-status" id="find-status"></p>
+            <button class="clear-btn" id="clear-btn" type="button">Clear list</button>
           </div>
         </div>
 
         <section class="results-section" id="results-section" style="display:none">
+          <div class="archetype-display" id="archetype-display" style="display:none">
+            <h2 class="archetype-name" id="archetype-name"></h2>
+            <p class="archetype-secondary" id="archetype-secondary" style="display:none"></p>
+          </div>
+
           <div class="taste-profile-card" id="taste-profile-card">
             <div class="taste-profile-header">
-              <h2 class="taste-profile-title">Your Uncurated Profile</h2>
+              <h2 class="taste-profile-title">Your reading profile</h2>
               <button class="copy-btn" id="copy-btn" title="Copy shareable summary">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                 <span class="copy-label">Share</span>
@@ -196,6 +203,7 @@
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               Share my recommendations
             </button>
+          <button class="clear-btn start-over-btn" id="start-over-btn" type="button">Start over</button>
           </div>
         </section>
       </main>

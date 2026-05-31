@@ -22,6 +22,8 @@ interface Recommendation {
 interface ApiResponse {
   taste_profile: string;
   short_taste_profile?: string;
+  archetype?: string;
+  archetype_secondary?: string;
   recommendations: Recommendation[];
 }
 
@@ -34,6 +36,21 @@ interface ScannedBook {
 
 type Category = "books" | "podcasts" | "watch" | "music";
 
+const ARCHETYPE_ICONS: Record<string, string> = {
+  "The Dark Escapist": "ti-moon",
+  "The Compulsive Page-Turner": "ti-bolt",
+  "The World-Builder": "ti-planet",
+  "The Reluctant Literary": "ti-book",
+  "The True Crime Mind": "ti-search",
+  "The Intellectual Adventurer": "ti-telescope",
+  "The Comfort Rereader": "ti-heart",
+  "The Historical Immersionist": "ti-clock",
+  "The Concept Reader": "ti-alien",
+  "The Quiet Realist": "ti-eye",
+  "The Epic Completionist": "ti-map",
+  "The Atmosphere Chaser": "ti-sparkles",
+};
+
 let activeCategory: Category = "books";
 let watchFormat: "series" | "films" | "both" = "both";
 let watchMood: "light" | "dark" | "any" = "any";
@@ -41,6 +58,8 @@ const items: Item[] = [];
 let currentRecs: Recommendation[] = [];
 let currentTasteProfile = "";
 let currentShortTasteProfile = "";
+let currentArchetype = "";
+let currentArchetypeSecondary = "";
 const seenTitles = new Set<string>();
 let reviewBooks: ScannedBook[] = [];
 
@@ -153,6 +172,15 @@ const shelfReviewList = document.getElementById("shelf-review-list") as HTMLULis
 const shelfReviewConfirm = document.getElementById("shelf-review-confirm") as HTMLButtonElement;
 const inputSection = document.querySelector(".input-section") as HTMLElement;
 
+// Clear / start-over elements
+const clearBtn = document.getElementById("clear-btn") as HTMLButtonElement;
+const startOverBtn = document.getElementById("start-over-btn") as HTMLButtonElement;
+
+// Archetype display elements
+const archetypeDisplay = document.getElementById("archetype-display") as HTMLElement;
+const archetypeNameEl = document.getElementById("archetype-name") as HTMLElement;
+const archetypeSecondaryEl = document.getElementById("archetype-secondary") as HTMLElement;
+
 // Share card element
 const shareCardBtn = document.getElementById("share-card-btn") as HTMLButtonElement;
 
@@ -162,6 +190,25 @@ function generateId(): string {
 
 function getCssVar(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+function clearAll(): void {
+  items.length = 0;
+  itemsList.innerHTML = "";
+  itemsSection.style.display = "none";
+  ctaRow.style.display = "none";
+  resultsSection.style.display = "none";
+  emailCta.style.display = "none";
+  currentRecs = [];
+  currentTasteProfile = "";
+  currentShortTasteProfile = "";
+  currentArchetype = "";
+  currentArchetypeSecondary = "";
+  archetypeDisplay.style.display = "none";
+  seenTitles.clear();
+  document.querySelector(".error-banner")?.remove();
+  exampleSection.style.display = activeCategory === "books" ? "flex" : "none";
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 function switchCategory(cat: Category): void {
@@ -181,6 +228,9 @@ function switchCategory(cat: Category): void {
   currentRecs = [];
   currentTasteProfile = "";
   currentShortTasteProfile = "";
+  currentArchetype = "";
+  currentArchetypeSecondary = "";
+  archetypeDisplay.style.display = "none";
   seenTitles.clear();
   document.querySelector(".error-banner")?.remove();
 
@@ -344,9 +394,24 @@ function renderRecCard(rec: Recommendation): HTMLElement {
 function renderResults(data: ApiResponse): void {
   currentTasteProfile = data.taste_profile;
   currentShortTasteProfile = data.short_taste_profile || "";
+  currentArchetype = data.archetype || "";
+  currentArchetypeSecondary = data.archetype_secondary || "";
   currentRecs = [...(data.recommendations || [])].sort((a, b) => b.match_score - a.match_score);
   seenTitles.clear();
   currentRecs.forEach((r) => seenTitles.add(r.title.toLowerCase()));
+
+  if (currentArchetype) {
+    archetypeNameEl.textContent = currentArchetype;
+    if (currentArchetypeSecondary) {
+      archetypeSecondaryEl.textContent = `with a streak of ${currentArchetypeSecondary}`;
+      archetypeSecondaryEl.style.display = "";
+    } else {
+      archetypeSecondaryEl.style.display = "none";
+    }
+    archetypeDisplay.style.display = "block";
+  } else {
+    archetypeDisplay.style.display = "none";
+  }
 
   tasteProfileText.textContent = currentTasteProfile;
   recsList.innerHTML = "";
@@ -521,6 +586,15 @@ function buildShareText(): string {
       : String(top.match_score);
   const config = CATEGORY_CONFIG[activeCategory];
   const profileText = currentShortTasteProfile || currentTasteProfile;
+
+  if (currentArchetype) {
+    return (
+      `I'm ${currentArchetype} — ${profileText}\n\n` +
+      `Top match: ${top.title} by ${top.author} (${score} match) — ${top.vibe}\n\n` +
+      `Find yours at uncurated.app`
+    );
+  }
+
   return (
     `${config.sharePrefix} ${profileText}\n\n` +
     `Top match: ${top.title} ${config.shareByWord} ${top.author} (${score} match) — ${top.vibe}\n\n` +
@@ -866,14 +940,14 @@ function truncateAtWordBoundary(text: string, maxChars: number): string {
   return (lastSpace > 0 ? truncated.slice(0, lastSpace) : truncated) + "…";
 }
 
-function buildShareCardEl(profileText: string, recs: Recommendation[]): HTMLElement {
+function buildShareCardEl(profileText: string, recs: Recommendation[], archetype?: string, archetypeSecondary?: string): HTMLElement {
   const bg = getCssVar("--bg");
   const textMuted = getCssVar("--text-muted");
   const border = getCssVar("--border");
 
   // Outer wrapper — exactly 390×844px (Instagram Stories); overflow:hidden hard-clips any overflow
   const wrap = document.createElement("div");
-  wrap.style.cssText = `position:absolute;left:-9999px;top:0;width:390px;height:844px;overflow:hidden;background:${bg};padding:64px 28px 32px;box-sizing:border-box;`;
+  wrap.style.cssText = `position:absolute;left:-9999px;top:0;width:390px;height:700px;overflow:hidden;background:${bg};padding:48px 28px 32px;box-sizing:border-box;`;
 
   // ── Branding header ───────────────────────────────────────────────────
   const header = document.createElement("div");
@@ -907,27 +981,59 @@ function buildShareCardEl(profileText: string, recs: Recommendation[]): HTMLElem
   header.appendChild(sep);
   wrap.appendChild(header);
 
-  // ── Profile card ──────────────────────────────────────────────────────
-  const profileCard = document.createElement("div");
-  profileCard.className = "taste-profile-card";
-  profileCard.style.cssText = "margin-bottom:16px;padding:15px 18px;";
+  // ── Profile / Archetype section ───────────────────────────────────────
+  if (archetype) {
+    const archetypeSection = document.createElement("div");
+    archetypeSection.style.cssText = "text-align:center;margin-bottom:20px;";
 
-  const profileCardHeader = document.createElement("div");
-  profileCardHeader.className = "taste-profile-header";
-  profileCardHeader.style.marginBottom = "10px";
-  const profileTitle = document.createElement("h2");
-  profileTitle.className = "taste-profile-title";
-  profileTitle.style.cssText = "margin:0;font-size:13px;";
-  profileTitle.textContent = "Your Uncurated Profile";
-  profileCardHeader.appendChild(profileTitle);
-  profileCard.appendChild(profileCardHeader);
+    const archetypeEl = document.createElement("h2");
+    archetypeEl.style.cssText = `font-family:'DM Serif Display',Georgia,serif;font-size:28px;font-weight:400;line-height:1.2;color:${getCssVar("--text")};margin:0 0 8px;`;
+    archetypeEl.innerHTML = "";
+    const cardIconClass = ARCHETYPE_ICONS[archetype];
+    if (cardIconClass) {
+      const cardIcon = document.createElement("i");
+      cardIcon.className = `ti ${cardIconClass}`;
+      cardIcon.style.cssText = "font-family:'tabler-icons';font-style:normal;font-size:1em;vertical-align:middle;margin-right:8px;";
+      archetypeEl.appendChild(cardIcon);
+    }
+    archetypeEl.appendChild(document.createTextNode(archetype));
+    archetypeSection.appendChild(archetypeEl);
 
-  const profileTextEl = document.createElement("p");
-  profileTextEl.className = "taste-profile-text";
-  profileTextEl.style.cssText = "margin:0;font-size:14px;line-height:1.6;";
-  profileTextEl.textContent = profileText;
-  profileCard.appendChild(profileTextEl);
-  wrap.appendChild(profileCard);
+    if (archetypeSecondary) {
+      const archetypeSecEl = document.createElement("p");
+      archetypeSecEl.style.cssText = `margin:0 0 12px;font-size:12px;color:${textMuted};`;
+      archetypeSecEl.textContent = `with a streak of ${archetypeSecondary}`;
+      archetypeSection.appendChild(archetypeSecEl);
+    }
+
+    const profileTextEl = document.createElement("p");
+    profileTextEl.style.cssText = `margin:0;font-size:13px;color:${textMuted};line-height:1.6;`;
+    profileTextEl.textContent = profileText;
+    archetypeSection.appendChild(profileTextEl);
+
+    wrap.appendChild(archetypeSection);
+  } else {
+    const profileCard = document.createElement("div");
+    profileCard.className = "taste-profile-card";
+    profileCard.style.cssText = "margin-bottom:16px;padding:15px 18px;";
+
+    const profileCardHeader = document.createElement("div");
+    profileCardHeader.className = "taste-profile-header";
+    profileCardHeader.style.marginBottom = "10px";
+    const profileTitle = document.createElement("h2");
+    profileTitle.className = "taste-profile-title";
+    profileTitle.style.cssText = "margin:0;font-size:13px;";
+    profileTitle.textContent = "Your Uncurated Profile";
+    profileCardHeader.appendChild(profileTitle);
+    profileCard.appendChild(profileCardHeader);
+
+    const profileTextEl = document.createElement("p");
+    profileTextEl.className = "taste-profile-text";
+    profileTextEl.style.cssText = "margin:0;font-size:14px;line-height:1.6;";
+    profileTextEl.textContent = profileText;
+    profileCard.appendChild(profileTextEl);
+    wrap.appendChild(profileCard);
+  }
 
   // ── Recs heading ──────────────────────────────────────────────────────
   const recsTitle = document.createElement("h2");
@@ -1028,12 +1134,13 @@ async function generateShareCard(): Promise<void> {
       document.fonts.load('400 17px "DM Serif Display"'),
       document.fonts.load('400 12px "DM Sans"'),
       document.fonts.load('700 26px "DM Sans"'),
+      document.fonts.load('400 1px "tabler-icons"'),
     ]).catch(() => {});
 
     const profileText = currentShortTasteProfile || truncateAtWordBoundary(currentTasteProfile.trim(), 120);
     const topRecs = currentRecs.slice(0, 3);
 
-    const cardEl = buildShareCardEl(profileText, topRecs);
+    const cardEl = buildShareCardEl(profileText, topRecs, currentArchetype || undefined, currentArchetypeSecondary || undefined);
     document.body.appendChild(cardEl);
 
     try {
@@ -1043,7 +1150,7 @@ async function generateShareCard(): Promise<void> {
         backgroundColor: getCssVar("--bg"),
         logging: false,
         width: 390,
-        height: 844,
+        height: 700,
         windowWidth: 390,
       });
 
@@ -1113,6 +1220,8 @@ async function sendEmail(): Promise<void> {
         recommendations: currentRecs,
         category: activeCategory,
         colorScheme: window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark",
+        archetype: currentArchetype || undefined,
+        archetype_secondary: currentArchetypeSecondary || undefined,
       }),
     });
 
@@ -1138,6 +1247,8 @@ itemInput.addEventListener("keydown", (e) => {
 });
 addBtn.addEventListener("click", () => addItem(itemInput.value));
 findBtn.addEventListener("click", fetchRecommendations);
+clearBtn.addEventListener("click", clearAll);
+startOverBtn.addEventListener("click", clearAll);
 copyBtn.addEventListener("click", copyProfile);
 emailSendBtn.addEventListener("click", sendEmail);
 emailInput.addEventListener("keydown", (e) => {

@@ -41,6 +41,8 @@ interface Recommendation {
 interface RecommendationResponse {
   taste_profile: string;
   short_taste_profile?: string;
+  archetype?: string;
+  archetype_secondary?: string;
   recommendations: Recommendation[];
 }
 
@@ -76,6 +78,8 @@ Respond ONLY with valid JSON. Your response must begin with { and end with }. Do
 {
   "taste_profile": "A 2-3 sentence honest description of their reading taste and what makes them tick as a reader.",
   "short_taste_profile": "One punchy complete sentence under 120 characters distilling their taste for sharing. Must end with a full stop. Never use '...' or ellipsis. Example: 'A fast-paced military sci-fi reader who wants stakes, action, and protagonists who never quit.'",
+  "archetype": "The Dark Escapist",
+  "archetype_secondary": "The Compulsive Page-Turner",
   "recommendations": [
     {
       "title": "Book Title",
@@ -93,6 +97,8 @@ Rules:
 - Do not recommend anything the user has already listed
 - amazon_search must be a valid Amazon search URL (amazon.co.uk) with the book title and author URL-encoded
 - short_taste_profile must be exactly one complete sentence, maximum 120 characters, ending with a full stop — never use '...' or ellipsis, never truncated mid-sentence
+- archetype must be exactly one of these 12 values: "The Dark Escapist", "The Compulsive Page-Turner", "The World-Builder", "The Reluctant Literary", "The True Crime Mind", "The Intellectual Adventurer", "The Comfort Rereader", "The Historical Immersionist", "The Concept Reader", "The Quiet Realist", "The Epic Completionist", "The Atmosphere Chaser"
+- archetype_secondary is optional — only include it if there is a meaningful secondary lean. If the profile is clearly one type, omit it. If included, it must be from the same 12 values and different from archetype
 - Your entire response must be valid JSON starting with { and ending with } — nothing else`;
 
 const PODCASTS_RECS_SYSTEM = `You are an honest, agenda-free podcast recommendation engine. You have no commercial affiliations, no sponsored content, and no hidden agenda. Your only goal is to understand someone's taste and give them genuinely useful podcast recommendations.

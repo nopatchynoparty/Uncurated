@@ -422,6 +422,51 @@ body {
   to { transform: rotate(360deg); }
 }
 
+/* Clear / start-over buttons */
+.clear-btn {
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0;
+  font-family: var(--font);
+  transition: color 0.12s;
+}
+
+.clear-btn:hover {
+  color: var(--text-muted);
+  text-decoration: underline;
+}
+
+.start-over-btn {
+  align-self: center;
+  margin-top: 8px;
+}
+
+/* Archetype display */
+.archetype-display {
+  text-align: center;
+  padding-bottom: 4px;
+  margin-bottom: -10px;
+}
+
+.archetype-name {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 400;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+
+.archetype-secondary {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
 /* Results */
 .results-section {
   display: flex;
@@ -451,11 +496,9 @@ body {
 }
 
 .taste-profile-title {
-  font-size: 13px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--accent);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
 }
 
 .copy-btn {
@@ -621,20 +664,21 @@ body {
 
 .read-this-btn {
   background: none;
-  border: none;
+  border: 1px solid var(--border);
   color: var(--text-faint);
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
-  padding: 0;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
   font-family: var(--font);
-  transition: color 0.12s;
+  transition: color 0.12s, border-color 0.12s;
   white-space: nowrap;
 }
 
 .read-this-btn:hover:not(:disabled) {
   color: var(--text-muted);
-  text-decoration: underline;
+  border-color: var(--text-faint);
 }
 
 .read-this-btn:disabled {
