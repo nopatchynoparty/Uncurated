@@ -34,7 +34,7 @@ interface ScannedBook {
   confidence: "high" | "medium";
 }
 
-type Category = "books" | "podcasts" | "watch" | "music";
+type Category = "books" | "podcasts" | "watch";
 
 const ARCHETYPE_ICONS: Record<string, string> = {
   "The Dark Escapist": "🌙",
@@ -99,15 +99,6 @@ const CATEGORY_CONFIG: Record<Category, {
     shareByWord: "by",
     minError: "Add at least 3 shows or films to get a good recommendation.",
   },
-  music: {
-    label: "What albums or artists have you loved?",
-    placeholder: "e.g. Radiohead, Bon Iver, The National…",
-    dismissBtn: "I've heard this",
-    linkText: "Find on Spotify →",
-    sharePrefix: "My listener profile:",
-    shareByWord: "by",
-    minError: "Add at least 3 albums or artists to get a good recommendation.",
-  },
 };
 
 const DISMISS_REASONS: Partial<Record<Category, string[]>> = {
@@ -123,12 +114,6 @@ const DISMISS_REASONS: Partial<Record<Category, string[]>> = {
     "Not available on my platforms",
     "Not my kind of tone",
     "Not interested in the topic",
-  ],
-  music: [
-    "Already know it",
-    "Not my kind of sound",
-    "Too mainstream",
-    "Not interested in the genre",
   ],
 };
 
@@ -325,7 +310,7 @@ function fillRecCard(li: HTMLElement, rec: Recommendation): void {
   if (config.linkText) {
     link.textContent = config.linkText;
     link.href = rec.amazon_search ||
-      (activeCategory === "podcasts" || activeCategory === "music"
+      (activeCategory === "podcasts"
         ? `https://open.spotify.com/search/${encodeURIComponent(rec.title)}`
         : `https://www.amazon.co.uk/s?k=${encodeURIComponent(rec.title + " " + (rec.author || ""))}&tag=uncuratedapp-20`);
     link.style.display = "";
@@ -954,19 +939,22 @@ function truncateAtWordBoundary(text: string, maxChars: number): string {
 
 function buildShareCardEl(profileText: string, recs: Recommendation[], archetype?: string, archetypeSecondary?: string): HTMLElement {
   const bg = getCssVar("--bg");
+  const surface = getCssVar("--surface");
+  const textColor = getCssVar("--text");
   const textMuted = getCssVar("--text-muted");
   const border = getCssVar("--border");
+  const top = recs[0];
 
-  // Outer wrapper — exactly 390×700px; overflow:hidden hard-clips any overflow
+  // Outer wrapper — 390×700px flex column; no overflow clipping so flex distributes space
   const wrap = document.createElement("div");
-  wrap.style.cssText = `position:absolute;left:-9999px;top:0;width:390px;height:700px;overflow:hidden;background:${bg};padding:48px 28px 32px;box-sizing:border-box;`;
+  wrap.style.cssText = `position:absolute;left:-9999px;top:0;width:390px;height:700px;overflow:hidden;background:${bg};padding:36px 36px 44px;box-sizing:border-box;display:flex;flex-direction:column;`;
 
-  // ── Branding header ───────────────────────────────────────────────────
+  // ── Branded header (wordmark + tagline + separator) ───────────────────
   const header = document.createElement("div");
   header.style.cssText = "text-align:center;margin-bottom:24px;";
 
-  const logoDiv = document.createElement("div");
-  logoDiv.style.cssText = "font-family:'DM Serif Display',Georgia,serif;font-size:26px;line-height:1;margin-bottom:8px;";
+  const wordmark = document.createElement("div");
+  wordmark.style.cssText = `font-family:'DM Serif Display',Georgia,serif;font-size:22px;line-height:1;margin-bottom:6px;`;
   const unSpan = document.createElement("span");
   unSpan.style.cssText = "position:relative;color:#888;display:inline-block;";
   const unTxt = document.createElement("span");
@@ -978,154 +966,122 @@ function buildShareCardEl(profileText: string, recs: Recommendation[], archetype
   unSpan.appendChild(strike);
   const curatedSpan = document.createElement("span");
   curatedSpan.textContent = "curated";
-  curatedSpan.style.color = getCssVar("--text");
-  logoDiv.appendChild(unSpan);
-  logoDiv.appendChild(curatedSpan);
-  header.appendChild(logoDiv);
+  curatedSpan.style.color = textColor;
+  wordmark.appendChild(unSpan);
+  wordmark.appendChild(curatedSpan);
+  header.appendChild(wordmark);
 
   const tagline = document.createElement("p");
-  tagline.textContent = "No algorithms. No sponsors. Just honest recommendations.";
-  tagline.style.cssText = `margin:0 0 14px;font-size:11px;color:${textMuted};line-height:1.4;`;
+  tagline.textContent = "honest recommendations";
+  tagline.style.cssText = `margin:0 0 14px;font-size:11px;color:${textMuted};letter-spacing:0.06em;`;
   header.appendChild(tagline);
 
-  const sep = document.createElement("div");
-  sep.style.cssText = "width:72px;height:1px;background:#f5a623;margin:0 auto;";
-  header.appendChild(sep);
+  const headerSep = document.createElement("div");
+  headerSep.style.cssText = "width:48px;height:2px;background:#f5a623;border-radius:1px;margin:0 auto;";
+  header.appendChild(headerSep);
+
   wrap.appendChild(header);
 
-  // ── Profile / Archetype section ───────────────────────────────────────
-  if (archetype) {
-    const archetypeSection = document.createElement("div");
-    archetypeSection.style.cssText = "text-align:center;margin-bottom:20px;";
+  // ── Archetype / profile header ────────────────────────────────────────
+  const topSection = document.createElement("div");
+  topSection.style.cssText = "text-align:center;";
 
+  if (archetype) {
     const archetypeEl = document.createElement("h2");
-    archetypeEl.style.cssText = `font-family:'DM Serif Display',Georgia,serif;font-size:28px;font-weight:400;line-height:1.2;color:${getCssVar("--text")};margin:0 0 8px;`;
-    archetypeEl.innerHTML = "";
+    archetypeEl.style.cssText = `font-family:'DM Serif Display',Georgia,serif;font-size:34px;font-weight:400;line-height:1.2;color:${textColor};margin:0 0 10px;`;
     const emoji = ARCHETYPE_ICONS[archetype];
     if (emoji) {
       const emojiSpan = document.createElement("span");
-      emojiSpan.textContent = emoji;
-      emojiSpan.style.marginRight = "8px";
+      emojiSpan.textContent = emoji + " ";
       archetypeEl.appendChild(emojiSpan);
     }
     archetypeEl.appendChild(document.createTextNode(archetype));
-    archetypeSection.appendChild(archetypeEl);
+    topSection.appendChild(archetypeEl);
 
     if (archetypeSecondary) {
-      const archetypeSecEl = document.createElement("p");
-      archetypeSecEl.style.cssText = `margin:0 0 12px;font-size:12px;color:${textMuted};`;
-      archetypeSecEl.textContent = `with a streak of ${archetypeSecondary}`;
-      archetypeSection.appendChild(archetypeSecEl);
+      const secEl = document.createElement("p");
+      secEl.style.cssText = `margin:0 0 20px;font-size:13px;color:${textMuted};`;
+      secEl.textContent = `with a streak of ${archetypeSecondary}`;
+      topSection.appendChild(secEl);
+    } else {
+      (topSection.lastChild as HTMLElement).style.marginBottom = "20px";
     }
-
-    const profileTextEl = document.createElement("p");
-    profileTextEl.style.cssText = `margin:0;font-size:13px;color:${textMuted};line-height:1.6;`;
-    profileTextEl.textContent = profileText;
-    archetypeSection.appendChild(profileTextEl);
-
-    wrap.appendChild(archetypeSection);
   } else {
-    const profileCard = document.createElement("div");
-    profileCard.className = "taste-profile-card";
-    profileCard.style.cssText = "margin-bottom:16px;padding:15px 18px;";
-
-    const profileCardHeader = document.createElement("div");
-    profileCardHeader.className = "taste-profile-header";
-    profileCardHeader.style.marginBottom = "10px";
-    const profileTitle = document.createElement("h2");
-    profileTitle.className = "taste-profile-title";
-    profileTitle.style.cssText = "margin:0;font-size:13px;";
-    profileTitle.textContent = "Your Uncurated Profile";
-    profileCardHeader.appendChild(profileTitle);
-    profileCard.appendChild(profileCardHeader);
-
-    const profileTextEl = document.createElement("p");
-    profileTextEl.className = "taste-profile-text";
-    profileTextEl.style.cssText = "margin:0;font-size:14px;line-height:1.6;";
-    profileTextEl.textContent = profileText;
-    profileCard.appendChild(profileTextEl);
-    wrap.appendChild(profileCard);
+    const label = document.createElement("p");
+    label.style.cssText = `margin:0 0 20px;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${textMuted};font-weight:600;`;
+    label.textContent = "Your Uncurated Profile";
+    topSection.appendChild(label);
   }
 
-  // ── Recs heading ──────────────────────────────────────────────────────
-  const recsTitle = document.createElement("h2");
-  recsTitle.className = "recs-title";
-  recsTitle.style.cssText = "margin:0 0 12px;font-size:11px;";
-  recsTitle.textContent = "Recommended for you";
-  wrap.appendChild(recsTitle);
+  const sep = document.createElement("div");
+  sep.style.cssText = "width:48px;height:2px;background:#f5a623;border-radius:1px;margin:0 auto 22px;";
+  topSection.appendChild(sep);
 
-  // ── Rec cards ─────────────────────────────────────────────────────────
-  const recsList = document.createElement("ol");
-  recsList.className = "recs-list";
-  recsList.style.cssText = "margin-bottom:16px;gap:8px;";
+  const profileTextEl = document.createElement("p");
+  profileTextEl.style.cssText = `margin:0;font-size:15px;line-height:1.65;color:${textMuted};`;
+  profileTextEl.textContent = profileText;
+  topSection.appendChild(profileTextEl);
 
-  recs.forEach((rec) => {
-    const li = document.createElement("li");
-    li.className = "rec-card";
-    li.style.cssText = "padding:13px 16px;gap:6px;";
+  wrap.appendChild(topSection);
 
-    const recHeader = document.createElement("div");
-    recHeader.className = "rec-header";
-    recHeader.style.gap = "8px";
+  // ── Top match card ────────────────────────────────────────────────────
+  if (top) {
+    const matchLabel = document.createElement("p");
+    matchLabel.style.cssText = `margin:auto 0 14px;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:${textMuted};font-weight:600;`;
+    matchLabel.textContent = "Top match";
+    wrap.appendChild(matchLabel);
 
-    const meta = document.createElement("div");
-    meta.className = "rec-meta";
+    const matchCard = document.createElement("div");
+    matchCard.style.cssText = `background:${surface};border:1px solid ${border};border-radius:12px;padding:20px 22px;`;
+
+    const titleRow = document.createElement("div");
+    titleRow.style.cssText = "display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;gap:16px;";
 
     const titleEl = document.createElement("span");
-    titleEl.className = "rec-title";
-    titleEl.style.fontSize = "18px";
-    titleEl.textContent = truncateAtWordBoundary(rec.title, 42);
-    meta.appendChild(titleEl);
-
-    const authorEl = document.createElement("span");
-    authorEl.className = "rec-author";
-    authorEl.style.fontSize = "13px";
-    authorEl.textContent = rec.author;
-    meta.appendChild(authorEl);
-
-    recHeader.appendChild(meta);
+    titleEl.style.cssText = `font-family:'DM Serif Display',Georgia,serif;font-size:22px;font-weight:400;line-height:1.25;color:${textColor};flex:1;`;
+    titleEl.textContent = top.title;
+    titleRow.appendChild(titleEl);
 
     const scoreWrap = document.createElement("div");
-    scoreWrap.className = "rec-score-wrap";
-
+    scoreWrap.style.cssText = "text-align:right;flex-shrink:0;";
     const scoreEl = document.createElement("span");
-    scoreEl.className = "rec-score";
-    scoreEl.style.fontSize = "20px";
-    scoreEl.textContent = typeof rec.match_score === "number" ? `${Math.round(rec.match_score)}%` : String(rec.match_score);
-    scoreWrap.appendChild(scoreEl);
-
+    scoreEl.style.cssText = "font-size:26px;font-weight:700;color:#f5a623;line-height:1;display:block;";
+    scoreEl.textContent = typeof top.match_score === "number" ? `${Math.round(top.match_score)}%` : String(top.match_score);
     const scoreLbl = document.createElement("span");
-    scoreLbl.className = "rec-score-label";
-    scoreLbl.style.fontSize = "10px";
+    scoreLbl.style.cssText = `font-size:10px;color:${textMuted};letter-spacing:0.06em;text-transform:uppercase;display:block;margin-top:2px;`;
     scoreLbl.textContent = "match";
+    scoreWrap.appendChild(scoreEl);
     scoreWrap.appendChild(scoreLbl);
+    titleRow.appendChild(scoreWrap);
+    matchCard.appendChild(titleRow);
 
-    recHeader.appendChild(scoreWrap);
-    li.appendChild(recHeader);
+    const authorEl = document.createElement("p");
+    authorEl.style.cssText = `margin:0 0 14px;font-size:14px;color:${textMuted};`;
+    authorEl.textContent = top.author;
+    matchCard.appendChild(authorEl);
 
-    const footer = document.createElement("div");
-    footer.className = "rec-footer";
+    if (top.vibe) {
+      const vibeEl = document.createElement("span");
+      vibeEl.className = "rec-vibe";
+      vibeEl.style.cssText = "font-size:12px;padding:4px 12px;";
+      vibeEl.textContent = top.vibe;
+      matchCard.appendChild(vibeEl);
+    }
 
-    const vibeEl = document.createElement("span");
-    vibeEl.className = "rec-vibe";
-    vibeEl.style.cssText = "max-width:100%;font-size:12px;padding:3px 10px;";
-    vibeEl.textContent = rec.vibe || "";
-    footer.appendChild(vibeEl);
-
-    li.appendChild(footer);
-    recsList.appendChild(li);
-  });
-
-  wrap.appendChild(recsList);
+    wrap.appendChild(matchCard);
+  }
 
   // ── Footer URL ────────────────────────────────────────────────────────
-  const divider = document.createElement("div");
-  divider.style.cssText = `height:1px;background:${border};margin-bottom:14px;`;
-  wrap.appendChild(divider);
-
   const footerUrl = document.createElement("p");
-  footerUrl.textContent = "uncurated.app";
-  footerUrl.style.cssText = "margin:0;text-align:center;font-size:12px;font-weight:600;color:#f5a623;";
+  footerUrl.style.cssText = `margin:auto 0 0;text-align:center;font-size:12px;font-weight:600;letter-spacing:0.04em;`;
+  const findYoursAt = document.createElement("span");
+  findYoursAt.textContent = "Find yours at ";
+  findYoursAt.style.color = textMuted;
+  const urlSpan = document.createElement("span");
+  urlSpan.textContent = "uncurated.app";
+  urlSpan.style.color = "#f5a623";
+  footerUrl.appendChild(findYoursAt);
+  footerUrl.appendChild(urlSpan);
   wrap.appendChild(footerUrl);
 
   return wrap;

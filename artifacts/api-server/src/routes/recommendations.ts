@@ -217,61 +217,6 @@ Rules:
 - amazon_search must be a valid Spotify search URL in the format https://open.spotify.com/search/Podcast%20Title with the podcast title URL-encoded in the path
 - Your entire response must be valid JSON starting with { and ending with } — nothing else`;
 
-const MUSIC_RECS_SYSTEM = `You are an honest, agenda-free music recommendation engine. You have no commercial affiliations, no sponsored content, and no hidden agenda. Your only goal is to understand someone's taste and give them genuinely useful recommendations.
-
-Rating key:
-- loved: they adored it
-- liked: they enjoyed it
-- meh: it didn't connect with them
-- abandoned: they stopped listening early (DNF)
-- hated: they finished it but strongly disliked it
-- unrated: no opinion provided
-
-Based on these ratings, analyze their listening taste and recommend 5 albums or artists they are very likely to love.
-
-Respond ONLY with valid JSON. Your response must begin with { and end with }. Do not use backticks, markdown, code fences, or any text outside the JSON object. Use exactly this shape:
-
-{
-  "taste_profile": "A 2-3 sentence honest description of their music taste and what makes them tick as a listener.",
-  "short_taste_profile": "One punchy complete sentence under 120 characters distilling their music taste for sharing. Must end with a full stop. Never use '...' or ellipsis. Example: 'A melody-first listener drawn to intimate singer-songwriters with a dark, literary edge.'",
-  "recommendations": [
-    {
-      "title": "Album or Artist Name",
-      "author": "Artist Name",
-      "match_score": 87,
-      "why": "One or two sentences explaining why this fits their specific taste based on what they loved and did not love.",
-      "vibe": "A short evocative phrase (e.g. hushed indie folk or maximalist art rock)",
-      "amazon_search": "https://open.spotify.com/search/Album%20Artist%20Name"
-    }
-  ]
-}
-
-Rules:
-- match_score must be a number between 60 and 99
-- Do not recommend anything the user has already listed
-- amazon_search must be a valid Spotify search URL in the format https://open.spotify.com/search/Title%20Artist with the title and artist URL-encoded in the path
-- Recommend only albums and artists — do not recommend films, documentaries, concerts, books, or any non-music media
-- short_taste_profile must be exactly one complete sentence, maximum 120 characters, ending with a full stop — never use '...' or ellipsis, never truncated mid-sentence
-- Your entire response must be valid JSON starting with { and ending with } — nothing else`;
-
-const MUSIC_REPLACE_SYSTEM = `You are an honest, agenda-free music recommendation engine with no commercial agenda.
-
-Respond ONLY with valid JSON. Your response must begin with { and end with }. Do not use backticks, markdown, code fences, or any text outside the JSON object. Use exactly this shape:
-
-{
-  "title": "Album or Artist Name",
-  "author": "Artist Name",
-  "match_score": 87,
-  "why": "One or two sentences explaining why this fits their specific taste.",
-  "vibe": "A short evocative phrase",
-  "amazon_search": "https://open.spotify.com/search/Album%20Artist%20Name"
-}
-
-Rules:
-- match_score must be a number between 60 and 99
-- The title must not appear in either list above in any form
-- amazon_search must be a valid Spotify search URL in the format https://open.spotify.com/search/Title%20Artist with the title and artist URL-encoded in the path
-- Your entire response must be valid JSON starting with { and ending with } — nothing else`;
 
 const WATCH_REPLACE_SYSTEM = `You are an honest, agenda-free TV and film recommendation engine with no commercial agenda.
 
@@ -363,9 +308,6 @@ function buildRecsUserMessage(items: RatedItem[], category: string): string {
   if (category === "podcasts") {
     return `Here are the podcasts this person has listened to, along with their ratings:\n\n${itemLines}`;
   }
-  if (category === "music") {
-    return `Here are the albums and artists this person has listened to, along with their ratings:\n\n${itemLines}`;
-  }
   return `Here are the books this person has read, along with their ratings:\n\n${itemLines}`;
 }
 
@@ -389,11 +331,11 @@ function buildReplaceUserMessage(
   category: string,
   dismissReason?: string,
 ): string {
-  const isAudio = category === "podcasts" || category === "music";
+  const isPodcasts = category === "podcasts";
   const itemLines = items.map((i) => `- "${i.name}" (${i.rating})`).join("\n");
-  const verbPast = isAudio ? "listened to" : "read";
-  const thingLabel = category === "podcasts" ? "podcasts" : category === "music" ? "albums and artists" : "books";
-  const checkWord = category === "podcasts" ? "podcast" : category === "music" ? "album or artist" : "book";
+  const verbPast = isPodcasts ? "listened to" : "read";
+  const thingLabel = isPodcasts ? "podcasts" : "books";
+  const checkWord = isPodcasts ? "podcast" : "book";
 
   const allForbidden = [...items.map((i) => i.name), ...exclude];
   const forbiddenLines = [...new Set(allForbidden.map((t) => t.toLowerCase()))]
@@ -503,7 +445,6 @@ router.post("/recommendations", async (req, res) => {
   const systemPrompt =
     category === "podcasts" ? PODCASTS_RECS_SYSTEM
     : category === "watch" ? WATCH_RECS_SYSTEM
-    : category === "music" ? MUSIC_RECS_SYSTEM
     : BOOKS_RECS_SYSTEM;
 
   const userMessage =
@@ -550,7 +491,7 @@ router.post("/recommendations", async (req, res) => {
 
     parsed.recommendations = parsed.recommendations.map((rec) => ({
       ...rec,
-      amazon_search: category === "podcasts" || category === "music"
+      amazon_search: category === "podcasts"
         ? sanitizePodcastUrl(rec.amazon_search ?? "", rec.title)
         : category === "watch"
           ? ""
@@ -598,7 +539,6 @@ router.post("/recommendations/replace", async (req, res) => {
   const systemPrompt =
     category === "podcasts" ? PODCASTS_REPLACE_SYSTEM
     : category === "watch" ? WATCH_REPLACE_SYSTEM
-    : category === "music" ? MUSIC_REPLACE_SYSTEM
     : BOOKS_REPLACE_SYSTEM;
 
   const userMessage =
@@ -643,7 +583,7 @@ router.post("/recommendations/replace", async (req, res) => {
       return;
     }
 
-    rec.amazon_search = category === "podcasts" || category === "music"
+    rec.amazon_search = category === "podcasts"
       ? sanitizePodcastUrl(rec.amazon_search ?? "", rec.title)
       : category === "watch"
         ? ""

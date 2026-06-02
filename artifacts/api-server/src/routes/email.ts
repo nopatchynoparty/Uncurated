@@ -156,7 +156,7 @@ function buildEmailHtml(tasteProfile: string, recs: Recommendation[], category: 
 
   const linkText =
     category === "books" ? "Find on Amazon"
-    : category === "podcasts" || category === "music" ? "Find on Spotify"
+    : category === "podcasts" ? "Find on Spotify"
     : null;
 
   const recCardsHtml = recs.map((rec) => buildRecCard(rec, linkText, c)).join("\n");
@@ -164,7 +164,6 @@ function buildEmailHtml(tasteProfile: string, recs: Recommendation[], category: 
   const subjectCategory =
     category === "books" ? "book"
     : category === "podcasts" ? "podcast"
-    : category === "music" ? "music"
     : "viewing";
 
   return `<!DOCTYPE html>
@@ -297,7 +296,6 @@ router.post("/email", async (req, res) => {
   const categoryLabel =
     category === "books" ? "book"
     : category === "podcasts" ? "podcast"
-    : category === "music" ? "music"
     : "viewing";
 
   const html = buildEmailHtml(taste_profile, recommendations, category ?? "books", colorScheme === "light" ? "light" : "dark", archetype, archetype_secondary);
