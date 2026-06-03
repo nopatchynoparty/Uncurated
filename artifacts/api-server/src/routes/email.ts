@@ -14,6 +14,8 @@ interface Recommendation {
   runtime?: string;
   where_to_watch?: string;
   year?: string;
+  platform?: string;
+  play_time?: string;
 }
 
 interface EmailRequest {
@@ -67,6 +69,36 @@ const ARCHETYPE_EMAIL_ICONS: Record<string, string> = {
   "The Atmosphere Chaser": "✨",
 };
 
+const GAMES_ARCHETYPE_EMAIL_ICONS: Record<string, string> = {
+  "The Completionist": "🏆",
+  "The Story Chaser": "📖",
+  "The Hardcore": "💀",
+  "The Explorer": "🗺️",
+  "The Strategist": "♟️",
+  "The Couch Co-op": "🎮",
+  "The Rogueliker": "🔄",
+  "The Immersionist": "🌍",
+  "The Speedrunner": "⚡",
+  "The Indie Darling": "🎨",
+  "The Retro Purist": "👾",
+  "The Casual Drifter": "☁️",
+};
+
+const WATCH_ARCHETYPE_EMAIL_ICONS: Record<string, string> = {
+  "The Prestige Drama Addict": "🏆",
+  "The Binge Monster": "⚡",
+  "The Dark & Twisted": "🌑",
+  "The Feel-Good Faithful": "☀️",
+  "The True Crime Obsessive": "🔍",
+  "The Sci-Fi Escapist": "🚀",
+  "The Comfort Rewatcher": "🛋️",
+  "The Doc Devotee": "🎥",
+  "The Sharp Comedy Fan": "😏",
+  "The Slow Burn Devotee": "🕯️",
+  "The Foreign Language Explorer": "🌍",
+  "The Underdog Champion": "🥊",
+};
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function escapeHtml(str: string): string {
@@ -93,7 +125,7 @@ function isTrustedUrl(url: string): boolean {
   }
 }
 
-function buildRecCard(rec: Recommendation, linkText: string | null, c: EmailColors): string {
+function buildRecCard(rec: Recommendation, linkText: string | null, c: EmailColors, category?: string): string {
   const score = Math.round(typeof rec.match_score === "number" ? rec.match_score : Number(rec.match_score));
   const safeLink = isTrustedUrl(rec.amazon_search) ? rec.amazon_search : null;
 
@@ -130,11 +162,18 @@ function buildRecCard(rec: Recommendation, linkText: string | null, c: EmailColo
                       </tr>
                     </table>
                     <!-- Watch metadata (format / runtime / platform / year) -->
-                    ${rec.format || rec.runtime || rec.where_to_watch || rec.year ? `
+                    ${category === "watch" && (rec.format || rec.runtime || rec.where_to_watch || rec.year) ? `
                     <p style="margin: 12px 0 0 0; font-family: 'DM Sans', Arial, Helvetica, sans-serif; line-height: 2;">
                       ${rec.format ? `<span style="display: inline-block; background-color: ${c.surface2}; color: ${c.textFaint}; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 8px; border-radius: 99px; border: 1px solid ${c.border}; margin-right: 4px;">${escapeHtml(rec.format)}</span>` : ""}
                       ${rec.runtime ? `<span style="display: inline-block; background-color: ${c.surface2}; color: ${c.textMuted}; font-size: 11px; padding: 2px 8px; border-radius: 99px; border: 1px solid ${c.border}; margin-right: 4px;">${escapeHtml(rec.runtime)}</span>` : ""}
                       ${rec.where_to_watch ? `<span style="display: inline-block; background-color: ${c.surface2}; color: ${c.textMuted}; font-size: 11px; padding: 2px 8px; border-radius: 99px; border: 1px solid ${c.border}; margin-right: 4px;">${escapeHtml(rec.where_to_watch)}</span>` : ""}
+                      ${rec.year ? `<span style="display: inline-block; background-color: ${c.surface2}; color: ${c.textMuted}; font-size: 11px; padding: 2px 8px; border-radius: 99px; border: 1px solid ${c.border};">${escapeHtml(rec.year)}</span>` : ""}
+                    </p>` : ""}
+                    <!-- Games metadata (platform / play_time / year) -->
+                    ${category === "games" && (rec.platform || rec.play_time || rec.year) ? `
+                    <p style="margin: 12px 0 0 0; font-family: 'DM Sans', Arial, Helvetica, sans-serif; line-height: 2;">
+                      ${rec.platform ? `<span style="display: inline-block; background-color: ${c.surface2}; color: ${c.textFaint}; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 8px; border-radius: 99px; border: 1px solid ${c.border}; margin-right: 4px;">${escapeHtml(rec.platform)}</span>` : ""}
+                      ${rec.play_time ? `<span style="display: inline-block; background-color: ${c.surface2}; color: ${c.textMuted}; font-size: 11px; padding: 2px 8px; border-radius: 99px; border: 1px solid ${c.border}; margin-right: 4px;">${escapeHtml(rec.play_time)}</span>` : ""}
                       ${rec.year ? `<span style="display: inline-block; background-color: ${c.surface2}; color: ${c.textMuted}; font-size: 11px; padding: 2px 8px; border-radius: 99px; border: 1px solid ${c.border};">${escapeHtml(rec.year)}</span>` : ""}
                     </p>` : ""}
                     <!-- Vibe tag -->
@@ -155,15 +194,16 @@ function buildEmailHtml(tasteProfile: string, recs: Recommendation[], category: 
   const c = colorScheme === "light" ? LIGHT_COLORS : DARK_COLORS;
 
   const linkText =
-    category === "books" ? "Find on Amazon"
+    category === "books" || category === "games" ? "Find on Amazon"
     : category === "podcasts" ? "Find on Spotify"
     : null;
 
-  const recCardsHtml = recs.map((rec) => buildRecCard(rec, linkText, c)).join("\n");
+  const recCardsHtml = recs.map((rec) => buildRecCard(rec, linkText, c, category)).join("\n");
 
   const subjectCategory =
     category === "books" ? "book"
     : category === "podcasts" ? "podcast"
+    : category === "games" ? "game"
     : "viewing";
 
   return `<!DOCTYPE html>
@@ -210,7 +250,7 @@ function buildEmailHtml(tasteProfile: string, recs: Recommendation[], category: 
           ${archetype ? `
           <tr>
             <td style="text-align: center; padding-bottom: 32px;">
-              <p style="font-size: 32px; margin: 0 0 8px 0; line-height: 1;">${escapeHtml(ARCHETYPE_EMAIL_ICONS[archetype] ?? "")}</p>
+              <p style="font-size: 32px; margin: 0 0 8px 0; line-height: 1;">${escapeHtml((category === "games" ? GAMES_ARCHETYPE_EMAIL_ICONS : category === "watch" ? WATCH_ARCHETYPE_EMAIL_ICONS : ARCHETYPE_EMAIL_ICONS)[archetype] ?? "")}</p>
               <h2 style="font-family: 'DM Serif Display', Georgia, 'Times New Roman', serif; font-size: 32px; font-weight: 400; color: ${c.text}; margin: 0 0 6px 0; line-height: 1.2;">${escapeHtml(archetype)}</h2>
               ${archetypeSecondary ? `<p style="font-family: 'DM Sans', Arial, Helvetica, sans-serif; font-size: 14px; color: ${c.textMuted}; margin: 0;">with a streak of ${escapeHtml(archetypeSecondary)}</p>` : ""}
             </td>
@@ -296,6 +336,7 @@ router.post("/email", async (req, res) => {
   const categoryLabel =
     category === "books" ? "book"
     : category === "podcasts" ? "podcast"
+    : category === "games" ? "game"
     : "viewing";
 
   const html = buildEmailHtml(taste_profile, recommendations, category ?? "books", colorScheme === "light" ? "light" : "dark", archetype, archetype_secondary);

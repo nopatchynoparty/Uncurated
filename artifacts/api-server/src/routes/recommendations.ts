@@ -13,6 +13,8 @@ interface RecommendationRequest {
   category: string;
   format?: string;
   mood?: string;
+  platform?: string;
+  deepCuts?: boolean;
 }
 
 interface ReplaceRequest {
@@ -23,6 +25,8 @@ interface ReplaceRequest {
   dismissReason?: string;
   format?: string;
   mood?: string;
+  platform?: string;
+  deepCuts?: boolean;
 }
 
 interface Recommendation {
@@ -36,6 +40,8 @@ interface Recommendation {
   runtime?: string;
   where_to_watch?: string;
   year?: string;
+  platform?: string;
+  play_time?: string;
 }
 
 interface RecommendationResponse {
@@ -99,6 +105,7 @@ Rules:
 - short_taste_profile must be exactly one complete sentence, maximum 120 characters, ending with a full stop — never use '...' or ellipsis, never truncated mid-sentence
 - archetype must be exactly one of these 12 values: "The Dark Escapist", "The Compulsive Page-Turner", "The World-Builder", "The Reluctant Literary", "The True Crime Mind", "The Intellectual Adventurer", "The Comfort Rereader", "The Historical Immersionist", "The Concept Reader", "The Quiet Realist", "The Epic Completionist", "The Atmosphere Chaser"
 - archetype_secondary is optional — only include it if there is a meaningful secondary lean. If the profile is clearly one type, omit it. If included, it must be from the same 12 values and different from archetype
+- Do not apply recency bias. Recommend the best fitting title regardless of release date. Match the era, tone, and style of what the user loved — if their taste skews classic or retro, recommend classic or retro titles rather than modern equivalents.
 - Your entire response must be valid JSON starting with { and ending with } — nothing else`;
 
 const PODCASTS_RECS_SYSTEM = `You are an honest, agenda-free podcast recommendation engine. You have no commercial affiliations, no sponsored content, and no hidden agenda. Your only goal is to understand someone's taste and give them genuinely useful podcast recommendations.
@@ -154,6 +161,8 @@ Respond ONLY with valid JSON. Your response must begin with { and end with }. Do
 {
   "taste_profile": "A 2-3 sentence honest description of their viewing taste and what makes them tick as a viewer.",
   "short_taste_profile": "One punchy complete sentence under 120 characters distilling their viewing taste for sharing. Must end with a full stop. Never use '...' or ellipsis. Example: 'A prestige drama fan who wants morally complex characters, slow-burn tension, and no easy answers.'",
+  "archetype": "The Prestige Drama Addict",
+  "archetype_secondary": "The Slow Burn Devotee",
   "recommendations": [
     {
       "title": "Show or Film Title",
@@ -177,6 +186,58 @@ Rules:
 - where_to_watch should list the primary streaming platform(s). If on multiple, list up to 2 separated by " / "
 - year should be the release year as a 4-digit string
 - short_taste_profile must be exactly one complete sentence, maximum 120 characters, ending with a full stop — never use '...' or ellipsis, never truncated mid-sentence
+- Avoid recommending titles so widely seen and discussed that a regular viewer would almost certainly have already watched them. Prioritise underseen, underrated, or less widely talked-about titles over cultural landmarks — unless the user's watch history suggests they are relatively new to the genre.
+- archetype must be exactly one of these 12 values: "The Prestige Drama Addict", "The Binge Monster", "The Dark & Twisted", "The Feel-Good Faithful", "The True Crime Obsessive", "The Sci-Fi Escapist", "The Comfort Rewatcher", "The Doc Devotee", "The Sharp Comedy Fan", "The Slow Burn Devotee", "The Foreign Language Explorer", "The Underdog Champion"
+- archetype_secondary is optional — only include it if there is a meaningful secondary lean. If the profile is clearly one type, omit it. If included, it must be from the same 12 values and different from archetype
+- Do not apply recency bias. Recommend the best fitting title regardless of release date. Match the era, tone, and style of what the user loved — if their taste skews classic or retro, recommend classic or retro titles rather than modern equivalents.
+- Your entire response must be valid JSON starting with { and ending with } — nothing else`;
+
+const GAMES_RECS_SYSTEM = `You are an honest, agenda-free video game recommendation engine. You have no commercial affiliations, no sponsored content, and no hidden agenda. Your only goal is to understand someone's taste and give them genuinely useful recommendations.
+
+Rating key:
+- loved: they adored it
+- liked: they enjoyed it
+- meh: it didn't connect with them
+- abandoned: they couldn't finish it (DNF)
+- hated: they finished it but strongly disliked it
+- unrated: no opinion provided
+
+Based on these ratings and preferences, analyze their taste and recommend 5 video games they are very likely to love.
+
+Respond ONLY with valid JSON. Your response must begin with { and end with }. Do not use backticks, markdown, code fences, or any text outside the JSON object. Use exactly this shape:
+
+{
+  "taste_profile": "A 2-3 sentence honest description of their gaming taste and what makes them tick as a player.",
+  "short_taste_profile": "One punchy complete sentence under 120 characters distilling their gaming taste for sharing. Must end with a full stop. Never use '...' or ellipsis. Example: 'A story-driven RPG fan who wants rich worlds, meaningful choices, and a narrative that lingers.'",
+  "archetype": "The Story Chaser",
+  "archetype_secondary": "The Explorer",
+  "recommendations": [
+    {
+      "title": "Game Title",
+      "author": "Studio Name",
+      "match_score": 87,
+      "why": "One or two sentences explaining why this fits their specific taste based on what they loved and did not love.",
+      "vibe": "A short evocative phrase (e.g. dark souls-like with narrative depth or cosy exploration RPG)",
+      "platform": "PC / PlayStation",
+      "play_time": "~20hrs",
+      "year": "2022",
+      "amazon_search": "https://www.amazon.co.uk/s?k=Game+Title+PlayStation"
+    }
+  ]
+}
+
+Rules:
+- match_score must be a number between 60 and 99
+- Do not recommend anything the user has already listed
+- platform should be the primary platform(s), max 2, e.g. "PC / Switch" or "Multiplatform"
+- play_time should be concise: "~10hrs", "~50hrs", "~200hrs", "Endless" for live service
+- year should be the release year as a 4-digit string
+- amazon_search must be a valid Amazon search URL (amazon.co.uk) with the game title and primary platform URL-encoded
+- short_taste_profile must be exactly one complete sentence, maximum 120 characters, ending with a full stop — never use '...' or ellipsis, never truncated mid-sentence
+- Default bias toward less obvious picks — avoid recommending titles so widely played that an active gamer would almost certainly have already tried them
+- archetype must be exactly one of these 12 values: "The Completionist", "The Story Chaser", "The Hardcore", "The Explorer", "The Strategist", "The Couch Co-op", "The Rogueliker", "The Immersionist", "The Speedrunner", "The Indie Darling", "The Retro Purist", "The Casual Drifter"
+- archetype_secondary is optional — only include it if there is a meaningful secondary lean. If the profile is clearly one type, omit it. If included, it must be from the same 12 values and different from archetype
+- Do not apply recency bias. Recommend the best fitting title regardless of release date. Match the era, tone, and style of what the user loved — if their taste skews classic or retro, recommend classic or retro titles rather than modern equivalents.
 - Your entire response must be valid JSON starting with { and ending with } — nothing else`;
 
 const BOOKS_REPLACE_SYSTEM = `You are an honest, agenda-free books recommendation engine with no commercial agenda.
@@ -217,6 +278,31 @@ Rules:
 - amazon_search must be a valid Spotify search URL in the format https://open.spotify.com/search/Podcast%20Title with the podcast title URL-encoded in the path
 - Your entire response must be valid JSON starting with { and ending with } — nothing else`;
 
+
+const GAMES_REPLACE_SYSTEM = `You are an honest, agenda-free video game recommendation engine with no commercial agenda.
+
+Respond ONLY with valid JSON. Your response must begin with { and end with }. Do not use backticks, markdown, code fences, or any text outside the JSON object. Use exactly this shape:
+
+{
+  "title": "Game Title",
+  "author": "Studio Name",
+  "match_score": 87,
+  "why": "One or two sentences explaining why this fits their specific taste.",
+  "vibe": "A short evocative phrase",
+  "platform": "PC / PlayStation",
+  "play_time": "~20hrs",
+  "year": "2022",
+  "amazon_search": "https://www.amazon.co.uk/s?k=Game+Title+PlayStation"
+}
+
+Rules:
+- match_score must be a number between 60 and 99
+- The title must not appear in either list above in any form
+- platform should be the primary platform(s), max 2
+- play_time should be concise: "~10hrs", "~50hrs", "~200hrs", "Endless" for live service
+- year should be the release year as a 4-digit string
+- amazon_search must be a valid Amazon search URL (amazon.co.uk) with the game title and primary platform URL-encoded
+- Your entire response must be valid JSON starting with { and ending with } — nothing else`;
 
 const WATCH_REPLACE_SYSTEM = `You are an honest, agenda-free TV and film recommendation engine with no commercial agenda.
 
@@ -311,7 +397,7 @@ function buildRecsUserMessage(items: RatedItem[], category: string): string {
   return `Here are the books this person has read, along with their ratings:\n\n${itemLines}`;
 }
 
-function buildWatchRecsUserMessage(items: RatedItem[], format: string, mood: string): string {
+function buildWatchRecsUserMessage(items: RatedItem[], format: string, mood: string, deepCuts?: boolean): string {
   const itemLines = items.map((i) => `- "${i.name}" (${i.rating})`).join("\n");
   const formatNote =
     format === "series" ? "Series only (no films)"
@@ -321,7 +407,10 @@ function buildWatchRecsUserMessage(items: RatedItem[], format: string, mood: str
     mood === "light" ? "Light/uplifting tone preferred"
     : mood === "dark" ? "Dark/serious tone preferred"
     : "No mood preference";
-  return `User preferences:\n- Format: ${formatNote}\n- Mood: ${moodNote}\n\nHere are the TV shows and films this person has watched, along with their ratings:\n\n${itemLines}`;
+  const deepCutsNote = deepCuts
+    ? "\nThis viewer watches extensively — prioritise hidden gems and underseen titles, avoid anything that would be considered obvious or that has had major mainstream cultural exposure."
+    : "";
+  return `User preferences:\n- Format: ${formatNote}\n- Mood: ${moodNote}${deepCutsNote}\n\nHere are the TV shows and films this person has watched, along with their ratings:\n\n${itemLines}`;
 }
 
 function buildReplaceUserMessage(
@@ -367,6 +456,69 @@ Recommend exactly ONE ${thingLabel} that does not appear in either list above an
 Before responding, silently check your chosen title against every item in both lists above. If there is any match — even a partial or reformatted one — pick a different ${checkWord}. Only respond when you are certain the title is not in either list.`;
 }
 
+function formatPlatformNote(platform: string): string {
+  if (!platform || platform === "all") return "All platforms welcome";
+  const labels: Record<string, string> = { pc: "PC", playstation: "PlayStation", switch: "Switch", xbox: "Xbox", mobile: "Mobile" };
+  const parts = platform.split(",").map((p) => labels[p] ?? p);
+  return parts.length === 1 ? `${parts[0]} only` : `${parts.join(" or ")} only`;
+}
+
+function buildGamesRecsUserMessage(items: RatedItem[], platform: string, deepCuts?: boolean): string {
+  const itemLines = items.map((i) => `- "${i.name}" (${i.rating})`).join("\n");
+  const platformNote = formatPlatformNote(platform);
+  const deepCutsNote = deepCuts
+    ? "\nThis player games extensively — prioritise hidden gems and underseen titles, avoid anything considered obvious or that has had major mainstream exposure."
+    : "";
+  return `User preferences:\n- Platform: ${platformNote}${deepCutsNote}\n\nHere are the games this person has played, along with their ratings:\n\n${itemLines}`;
+}
+
+function buildGamesReplaceUserMessage(
+  items: RatedItem[],
+  exclude: string[],
+  currentlyShown: string[],
+  platform: string,
+  dismissReason?: string,
+  deepCuts?: boolean,
+): string {
+  const itemLines = items.map((i) => `- "${i.name}" (${i.rating})`).join("\n");
+
+  const allForbidden = [...items.map((i) => i.name), ...exclude];
+  const forbiddenLines = [...new Set(allForbidden.map((t) => t.toLowerCase()))]
+    .map((t) => `- "${t}"`)
+    .join("\n");
+  const shownLines =
+    currentlyShown.length > 0
+      ? currentlyShown.map((t) => `- "${t}"`).join("\n")
+      : "(none)";
+
+  const platformNote = formatPlatformNote(platform);
+  const deepCutsNote = deepCuts
+    ? "\nThis player games extensively — prioritise hidden gems and underseen titles, avoid anything considered obvious or that has had major mainstream exposure."
+    : "";
+
+  const dismissContext = dismissReason
+    ? `\nThe user passed on the previous recommendation because: "${dismissReason}". Use this to find a better fit — if they said "Already played it", find something with similar appeal they haven't played; if "Too long a commitment", prefer shorter games (~10hrs or less); if "Not my kind of genre", avoid similar genre or gameplay feel; if "Not available on my platform", aim for their specified platform; if "Not interested in the theme", steer clear of that subject area entirely.\n`
+    : "";
+
+  return `User preferences:\n- Platform: ${platformNote}${deepCutsNote}
+${dismissContext}
+Here are the games this person has played, along with their ratings:
+
+${itemLines}
+
+Rating key: loved = adored it, liked = enjoyed it, meh = did not connect, abandoned = could not finish, hated = finished but strongly disliked, unrated = no opinion.
+
+FORBIDDEN TITLES — do not suggest any of these under any circumstances. Treat a title as forbidden if it matches in any form, including with or without a series prefix, subtitle, or punctuation differences:
+${forbiddenLines}
+
+CURRENTLY SHOWN — these are already visible to the user right now and must also not be suggested:
+${shownLines}
+
+Recommend exactly ONE game that does not appear in either list above and fits this person's taste.
+
+Before responding, silently check your chosen title against every item in both lists above. If there is any match — even a partial or reformatted one — pick a different game. Only respond when you are certain the title is not in either list.`;
+}
+
 function buildWatchReplaceUserMessage(
   items: RatedItem[],
   exclude: string[],
@@ -374,6 +526,7 @@ function buildWatchReplaceUserMessage(
   format: string,
   mood: string,
   dismissReason?: string,
+  deepCuts?: boolean,
 ): string {
   const itemLines = items.map((i) => `- "${i.name}" (${i.rating})`).join("\n");
 
@@ -394,12 +547,15 @@ function buildWatchReplaceUserMessage(
     mood === "light" ? "Light/uplifting tone preferred"
     : mood === "dark" ? "Dark/serious tone preferred"
     : "No mood preference";
+  const deepCutsNote = deepCuts
+    ? "\nThis viewer watches extensively — prioritise hidden gems and underseen titles, avoid anything that would be considered obvious or that has had major mainstream cultural exposure."
+    : "";
 
   const dismissContext = dismissReason
     ? `\nThe user passed on the previous recommendation because: "${dismissReason}". Use this to find a better fit — if they said "Already watched it", find something with similar appeal they haven't seen; if "Too long a commitment", prefer shorter runtime (a film or a short series); if "Not available on my platforms", aim for widely available platforms like Netflix or Prime Video; if "Not my kind of tone", avoid similar atmosphere or genre feel; if "Not interested in the topic", steer clear of that subject area entirely.\n`
     : "";
 
-  return `User preferences:\n- Format: ${formatNote}\n- Mood: ${moodNote}
+  return `User preferences:\n- Format: ${formatNote}\n- Mood: ${moodNote}${deepCutsNote}
 ${dismissContext}
 Here are the shows and films this person has watched, along with their ratings:
 
@@ -427,7 +583,7 @@ router.post("/recommendations", async (req, res) => {
     return;
   }
 
-  const { items, category = "books", format = "both", mood = "any" } = req.body as RecommendationRequest;
+  const { items, category = "books", format = "both", mood = "any", platform = "all", deepCuts } = req.body as RecommendationRequest;
 
   if (!Array.isArray(items) || items.length === 0) {
     res.status(400).json({ error: "Please provide at least one item." });
@@ -445,12 +601,15 @@ router.post("/recommendations", async (req, res) => {
   const systemPrompt =
     category === "podcasts" ? PODCASTS_RECS_SYSTEM
     : category === "watch" ? WATCH_RECS_SYSTEM
+    : category === "games" ? GAMES_RECS_SYSTEM
     : BOOKS_RECS_SYSTEM;
 
   const userMessage =
     category === "watch"
-      ? buildWatchRecsUserMessage(items, format, mood)
-      : buildRecsUserMessage(items, category);
+      ? buildWatchRecsUserMessage(items, format, mood, deepCuts)
+      : category === "games"
+        ? buildGamesRecsUserMessage(items, platform, deepCuts)
+        : buildRecsUserMessage(items, category);
 
   const abort = new AbortController();
   const timer = setTimeout(() => abort.abort(), CLAUDE_TIMEOUT_MS);
@@ -495,7 +654,9 @@ router.post("/recommendations", async (req, res) => {
         ? sanitizePodcastUrl(rec.amazon_search ?? "", rec.title)
         : category === "watch"
           ? ""
-          : sanitizeAmazonUrl(rec.amazon_search ?? "", rec.title, rec.author),
+          : category === "games"
+            ? sanitizeAmazonUrl(rec.amazon_search ?? "", rec.title, rec.platform?.split(" / ")[0] || "")
+            : sanitizeAmazonUrl(rec.amazon_search ?? "", rec.title, rec.author),
     }));
 
     res.json(parsed);
@@ -521,6 +682,8 @@ router.post("/recommendations/replace", async (req, res) => {
     dismissReason,
     format = "both",
     mood = "any",
+    platform = "all",
+    deepCuts,
   } = req.body as ReplaceRequest;
 
   if (!Array.isArray(items) || items.length === 0) {
@@ -539,12 +702,15 @@ router.post("/recommendations/replace", async (req, res) => {
   const systemPrompt =
     category === "podcasts" ? PODCASTS_REPLACE_SYSTEM
     : category === "watch" ? WATCH_REPLACE_SYSTEM
+    : category === "games" ? GAMES_REPLACE_SYSTEM
     : BOOKS_REPLACE_SYSTEM;
 
   const userMessage =
     category === "watch"
-      ? buildWatchReplaceUserMessage(items, exclude, currentlyShown, format, mood, dismissReason)
-      : buildReplaceUserMessage(items, exclude, currentlyShown, category, dismissReason);
+      ? buildWatchReplaceUserMessage(items, exclude, currentlyShown, format, mood, dismissReason, deepCuts)
+      : category === "games"
+        ? buildGamesReplaceUserMessage(items, exclude, currentlyShown, platform, dismissReason, deepCuts)
+        : buildReplaceUserMessage(items, exclude, currentlyShown, category, dismissReason);
 
   const abort = new AbortController();
   const timer = setTimeout(() => abort.abort(), CLAUDE_TIMEOUT_MS);
@@ -587,7 +753,9 @@ router.post("/recommendations/replace", async (req, res) => {
       ? sanitizePodcastUrl(rec.amazon_search ?? "", rec.title)
       : category === "watch"
         ? ""
-        : sanitizeAmazonUrl(rec.amazon_search ?? "", rec.title, rec.author);
+        : category === "games"
+          ? sanitizeAmazonUrl(rec.amazon_search ?? "", rec.title, rec.platform?.split(" / ")[0] || "")
+          : sanitizeAmazonUrl(rec.amazon_search ?? "", rec.title, rec.author);
 
     res.json({ recommendation: rec });
   } catch (err: unknown) {

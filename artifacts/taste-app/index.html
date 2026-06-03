@@ -87,6 +87,28 @@
               <button class="toggle-btn active" data-toggle="mood" data-value="any">Doesn't matter</button>
             </div>
           </div>
+          <label class="deep-cuts-label">
+            <input type="checkbox" id="deep-cuts-checkbox" />
+            I watch a lot — go deeper
+          </label>
+        </section>
+
+        <section class="games-options" id="games-options" style="display:none">
+          <div class="toggle-group">
+            <span class="toggle-label">Platform</span>
+            <div class="toggle-btns">
+              <button class="toggle-btn active" data-toggle="platform" data-value="all">All</button>
+              <button class="toggle-btn" data-toggle="platform" data-value="pc">PC</button>
+              <button class="toggle-btn" data-toggle="platform" data-value="playstation">PlayStation</button>
+              <button class="toggle-btn" data-toggle="platform" data-value="xbox">Xbox</button>
+              <button class="toggle-btn" data-toggle="platform" data-value="switch">Switch</button>
+              <button class="toggle-btn" data-toggle="platform" data-value="mobile">Mobile</button>
+            </div>
+          </div>
+          <label class="deep-cuts-label">
+            <input type="checkbox" id="games-deep-cuts-checkbox" />
+            I play a lot — go deeper
+          </label>
         </section>
 
         <section class="example-section" id="example-section" aria-label="Example output preview">
@@ -245,6 +267,11 @@
           <span class="rec-runtime"></span>
           <span class="rec-where-to-watch"></span>
           <span class="rec-year"></span>
+        </div>
+        <div class="games-fields" style="display:none">
+          <span class="rec-platform-badge"></span>
+          <span class="rec-playtime-badge"></span>
+          <span class="rec-year-badge"></span>
         </div>
         <div class="rec-footer">
           <span class="rec-vibe"></span>

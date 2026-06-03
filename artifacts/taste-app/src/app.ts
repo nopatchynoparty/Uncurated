@@ -17,6 +17,8 @@ interface Recommendation {
   runtime?: string;
   where_to_watch?: string;
   year?: string;
+  platform?: string;
+  play_time?: string;
 }
 
 interface ApiResponse {
@@ -34,7 +36,7 @@ interface ScannedBook {
   confidence: "high" | "medium";
 }
 
-type Category = "books" | "podcasts" | "watch";
+type Category = "books" | "podcasts" | "watch" | "games";
 
 const ARCHETYPE_ICONS: Record<string, string> = {
   "The Dark Escapist": "🌙",
@@ -51,9 +53,42 @@ const ARCHETYPE_ICONS: Record<string, string> = {
   "The Atmosphere Chaser": "✨",
 };
 
+const GAMES_ARCHETYPE_ICONS: Record<string, string> = {
+  "The Completionist": "🏆",
+  "The Story Chaser": "📖",
+  "The Hardcore": "💀",
+  "The Explorer": "🗺️",
+  "The Strategist": "⚔️",
+  "The Couch Co-op": "🎮",
+  "The Rogueliker": "🔄",
+  "The Immersionist": "🌍",
+  "The Speedrunner": "⚡",
+  "The Indie Darling": "🎨",
+  "The Retro Purist": "👾",
+  "The Casual Drifter": "☁️",
+};
+
+const WATCH_ARCHETYPE_ICONS: Record<string, string> = {
+  "The Prestige Drama Addict": "🏆",
+  "The Binge Monster": "⚡",
+  "The Dark & Twisted": "🌑",
+  "The Feel-Good Faithful": "☀️",
+  "The True Crime Obsessive": "🔍",
+  "The Sci-Fi Escapist": "🚀",
+  "The Comfort Rewatcher": "🛋️",
+  "The Doc Devotee": "🎥",
+  "The Sharp Comedy Fan": "😏",
+  "The Slow Burn Devotee": "🕯️",
+  "The Foreign Language Explorer": "🌍",
+  "The Underdog Champion": "🥊",
+};
+
 let activeCategory: Category = "books";
 let watchFormat: "series" | "films" | "both" = "both";
 let watchMood: "light" | "dark" | "any" = "any";
+let watchDeepCuts = false;
+let gamesPlatforms: string[] = [];
+let gamesDeepCuts = false;
 const items: Item[] = [];
 let currentRecs: Recommendation[] = [];
 let currentTasteProfile = "";
@@ -82,7 +117,7 @@ const CATEGORY_CONFIG: Record<Category, {
     minError: "Add at least 3 books to get a good recommendation.",
   },
   podcasts: {
-    label: "What podcasts have you loved?",
+    label: "What podcasts have you listened to?",
     placeholder: "e.g. Serial, Hardcore History, Radiolab…",
     dismissBtn: "I've listened to this",
     linkText: "Find on Spotify →",
@@ -99,6 +134,15 @@ const CATEGORY_CONFIG: Record<Category, {
     shareByWord: "by",
     minError: "Add at least 3 shows or films to get a good recommendation.",
   },
+  games: {
+    label: "WHAT HAVE YOU PLAYED?",
+    placeholder: "e.g. Elden Ring, The Last of Us, Hades…",
+    dismissBtn: "I've played this",
+    linkText: "Find on Amazon →",
+    sharePrefix: "My gamer profile:",
+    shareByWord: "by",
+    minError: "Add at least 3 games to get a good recommendation.",
+  },
 };
 
 const DISMISS_REASONS: Partial<Record<Category, string[]>> = {
@@ -114,6 +158,13 @@ const DISMISS_REASONS: Partial<Record<Category, string[]>> = {
     "Not available on my platforms",
     "Not my kind of tone",
     "Not interested in the topic",
+  ],
+  games: [
+    "Already played it",
+    "Too long a commitment",
+    "Not my kind of genre",
+    "Not available on my platform",
+    "Not interested in the theme",
   ],
 };
 
@@ -136,6 +187,9 @@ const importBtn = document.getElementById("import-btn") as HTMLButtonElement;
 const csvFileInput = document.getElementById("csv-file-input") as HTMLInputElement;
 const inputLabel = document.querySelector(".input-label") as HTMLLabelElement;
 const watchOptions = document.getElementById("watch-options") as HTMLElement;
+const deepCutsCheckbox = document.getElementById("deep-cuts-checkbox") as HTMLInputElement;
+const gamesOptions = document.getElementById("games-options") as HTMLElement;
+const gamesDeepCutsCheckbox = document.getElementById("games-deep-cuts-checkbox") as HTMLInputElement;
 const emailCta = document.getElementById("email-cta") as HTMLElement;
 const exampleSection = document.getElementById("example-section") as HTMLElement;
 const emailInput = document.getElementById("email-input") as HTMLInputElement;
@@ -229,6 +283,7 @@ function switchCategory(cat: Category): void {
 
   importBtns.style.display = cat === "books" ? "flex" : "none";
   watchOptions.style.display = cat === "watch" ? "flex" : "none";
+  gamesOptions.style.display = cat === "games" ? "flex" : "none";
   exampleSection.style.display = cat === "books" ? "flex" : "none";
 }
 
@@ -328,6 +383,16 @@ function fillRecCard(li: HTMLElement, rec: Recommendation): void {
   } else {
     watchFields.style.display = "none";
   }
+
+  const gamesFields = li.querySelector(".games-fields") as HTMLElement;
+  if (activeCategory === "games") {
+    gamesFields.style.display = "flex";
+    (li.querySelector(".rec-platform-badge") as HTMLElement).textContent = rec.platform || "";
+    (li.querySelector(".rec-playtime-badge") as HTMLElement).textContent = rec.play_time || "";
+    (li.querySelector(".rec-year-badge") as HTMLElement).textContent = rec.year || "";
+  } else {
+    gamesFields.style.display = "none";
+  }
 }
 
 function showDismissReasons(cardEl: HTMLElement): void {
@@ -391,7 +456,7 @@ function renderResults(data: ApiResponse): void {
 
   if (currentArchetype) {
     archetypeNameEl.innerHTML = "";
-    const archetypeEmoji = ARCHETYPE_ICONS[currentArchetype];
+    const archetypeEmoji = (activeCategory === "games" ? GAMES_ARCHETYPE_ICONS : activeCategory === "watch" ? WATCH_ARCHETYPE_ICONS : ARCHETYPE_ICONS)[currentArchetype];
     if (archetypeEmoji) {
       const emojiSpan = document.createElement("span");
       emojiSpan.textContent = archetypeEmoji;
@@ -457,6 +522,11 @@ async function replaceRec(
   if (activeCategory === "watch") {
     replaceBody.format = watchFormat;
     replaceBody.mood = watchMood;
+    if (watchDeepCuts) replaceBody.deepCuts = true;
+  }
+  if (activeCategory === "games") {
+    replaceBody.platform = gamesPlatforms.join(",") || "all";
+    if (gamesDeepCuts) replaceBody.deepCuts = true;
   }
 
   try {
@@ -544,6 +614,11 @@ async function fetchRecommendations(): Promise<void> {
   if (activeCategory === "watch") {
     recBody.format = watchFormat;
     recBody.mood = watchMood;
+    if (watchDeepCuts) recBody.deepCuts = true;
+  }
+  if (activeCategory === "games") {
+    recBody.platform = gamesPlatforms.join(",") || "all";
+    if (gamesDeepCuts) recBody.deepCuts = true;
   }
 
   try {
@@ -951,7 +1026,7 @@ function buildShareCardEl(profileText: string, recs: Recommendation[], archetype
 
   // ── Branded header (wordmark + tagline + separator) ───────────────────
   const header = document.createElement("div");
-  header.style.cssText = "text-align:center;margin-bottom:24px;";
+  header.style.cssText = "text-align:center;margin-bottom:18px;";
 
   const wordmark = document.createElement("div");
   wordmark.style.cssText = `font-family:'DM Serif Display',Georgia,serif;font-size:22px;line-height:1;margin-bottom:6px;`;
@@ -971,8 +1046,14 @@ function buildShareCardEl(profileText: string, recs: Recommendation[], archetype
   wordmark.appendChild(curatedSpan);
   header.appendChild(wordmark);
 
+  const categoryLines: Partial<Record<Category, string>> = {
+    books: "my reading picks",
+    watch: "my watch picks",
+    games: "my games picks",
+    podcasts: "my listening picks",
+  };
   const tagline = document.createElement("p");
-  tagline.textContent = "honest recommendations";
+  tagline.textContent = categoryLines[activeCategory] ?? "honest recommendations";
   tagline.style.cssText = `margin:0 0 14px;font-size:11px;color:${textMuted};letter-spacing:0.06em;`;
   header.appendChild(tagline);
 
@@ -989,7 +1070,7 @@ function buildShareCardEl(profileText: string, recs: Recommendation[], archetype
   if (archetype) {
     const archetypeEl = document.createElement("h2");
     archetypeEl.style.cssText = `font-family:'DM Serif Display',Georgia,serif;font-size:34px;font-weight:400;line-height:1.2;color:${textColor};margin:0 0 10px;`;
-    const emoji = ARCHETYPE_ICONS[archetype];
+    const emoji = (activeCategory === "games" ? GAMES_ARCHETYPE_ICONS : activeCategory === "watch" ? WATCH_ARCHETYPE_ICONS : ARCHETYPE_ICONS)[archetype];
     if (emoji) {
       const emojiSpan = document.createElement("span");
       emojiSpan.textContent = emoji + " ";
@@ -1027,7 +1108,7 @@ function buildShareCardEl(profileText: string, recs: Recommendation[], archetype
   // ── Top match card ────────────────────────────────────────────────────
   if (top) {
     const matchLabel = document.createElement("p");
-    matchLabel.style.cssText = `margin:auto 0 14px;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:${textMuted};font-weight:600;`;
+    matchLabel.style.cssText = `margin:12px 0 12px;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:${textMuted};font-weight:600;`;
     matchLabel.textContent = "Top match";
     wrap.appendChild(matchLabel);
 
@@ -1069,6 +1150,42 @@ function buildShareCardEl(profileText: string, recs: Recommendation[], archetype
     }
 
     wrap.appendChild(matchCard);
+  }
+
+  // ── Also recommended (2nd + 3rd) ──────────────────────────────────────
+  const alsoRecs = recs.slice(1, 3).filter(Boolean);
+  if (alsoRecs.length > 0) {
+    const alsoLabel = document.createElement("p");
+    alsoLabel.style.cssText = `margin:16px 0 12px;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:${textMuted};font-weight:600;`;
+    alsoLabel.textContent = "Also recommended";
+    wrap.appendChild(alsoLabel);
+
+    const alsoList = document.createElement("div");
+    alsoList.style.cssText = "display:flex;flex-direction:column;gap:7px;";
+
+    alsoRecs.forEach((rec) => {
+      const row = document.createElement("div");
+      row.style.cssText = "display:flex;align-items:baseline;gap:6px;overflow:hidden;";
+
+      const bullet = document.createElement("span");
+      bullet.style.cssText = `font-size:12px;color:${textMuted};flex-shrink:0;line-height:1.5;`;
+      bullet.textContent = "·";
+
+      const titleSpan = document.createElement("span");
+      titleSpan.style.cssText = `font-size:14px;color:${textColor};flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.5;`;
+      titleSpan.textContent = rec.title;
+
+      const scoreSpan = document.createElement("span");
+      scoreSpan.style.cssText = "font-size:12px;color:#f5a623;font-weight:600;flex-shrink:0;line-height:1.5;";
+      scoreSpan.textContent = `${Math.round(rec.match_score)}% match`;
+
+      row.appendChild(bullet);
+      row.appendChild(titleSpan);
+      row.appendChild(scoreSpan);
+      alsoList.appendChild(row);
+    });
+
+    wrap.appendChild(alsoList);
   }
 
   // ── Footer URL ────────────────────────────────────────────────────────
@@ -1152,12 +1269,37 @@ document.querySelectorAll<HTMLButtonElement>(".toggle-btn").forEach((btn) => {
   btn.addEventListener("click", () => {
     const group = btn.dataset.toggle!;
     const value = btn.dataset.value!;
-    btn.closest(".toggle-btns")!.querySelectorAll<HTMLButtonElement>(".toggle-btn").forEach((b) => {
-      b.classList.toggle("active", b === btn);
-    });
-    if (group === "format") watchFormat = value as "series" | "films" | "both";
-    if (group === "mood") watchMood = value as "light" | "dark" | "any";
+
+    if (group === "platform") {
+      const allBtns = btn.closest(".toggle-btns")!.querySelectorAll<HTMLButtonElement>(".toggle-btn");
+      if (value === "all") {
+        gamesPlatforms = [];
+        allBtns.forEach((b) => b.classList.toggle("active", b.dataset.value === "all"));
+      } else {
+        const idx = gamesPlatforms.indexOf(value);
+        if (idx === -1) gamesPlatforms.push(value);
+        else gamesPlatforms.splice(idx, 1);
+        allBtns.forEach((b) => {
+          if (b.dataset.value === "all") b.classList.toggle("active", gamesPlatforms.length === 0);
+          else b.classList.toggle("active", gamesPlatforms.includes(b.dataset.value!));
+        });
+      }
+    } else {
+      btn.closest(".toggle-btns")!.querySelectorAll<HTMLButtonElement>(".toggle-btn").forEach((b) => {
+        b.classList.toggle("active", b === btn);
+      });
+      if (group === "format") watchFormat = value as "series" | "films" | "both";
+      if (group === "mood") watchMood = value as "light" | "dark" | "any";
+    }
   });
+});
+
+deepCutsCheckbox.addEventListener("change", () => {
+  watchDeepCuts = deepCutsCheckbox.checked;
+});
+
+gamesDeepCutsCheckbox.addEventListener("change", () => {
+  gamesDeepCuts = gamesDeepCutsCheckbox.checked;
 });
 
 async function sendEmail(): Promise<void> {
