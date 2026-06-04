@@ -270,7 +270,7 @@ Respond ONLY with valid JSON. Your response must begin with { and end with }. Do
 
 Rules:
 - match_score must be a number between 60 and 99
-- The title must not match any forbidden title in any form: ignoring leading "The", "A", or "An"; ignoring subtitles after a colon or em-dash; ignoring punctuation differences. When in doubt, pick something else.
+- The title must not match any forbidden title in any form: ignoring leading "The", "A", or "An"; ignoring any series prefix before a colon or em-dash (e.g. "Series: Title" matches "Title"); ignoring subtitles after a colon or em-dash (e.g. "Title: Subtitle" matches "Title"); ignoring punctuation differences. When in doubt, pick something else.
 - amazon_search must be a valid Amazon search URL (amazon.co.uk) with the book title and author URL-encoded
 - Your entire response must be valid JSON starting with { and ending with } — nothing else`;
 
@@ -289,7 +289,7 @@ Respond ONLY with valid JSON. Your response must begin with { and end with }. Do
 
 Rules:
 - match_score must be a number between 60 and 99
-- The title must not match any forbidden title in any form: ignoring leading "The", "A", or "An"; ignoring subtitles after a colon or em-dash; ignoring punctuation differences. When in doubt, pick something else.
+- The title must not match any forbidden title in any form: ignoring leading "The", "A", or "An"; ignoring any series prefix before a colon or em-dash (e.g. "Series: Title" matches "Title"); ignoring subtitles after a colon or em-dash (e.g. "Title: Subtitle" matches "Title"); ignoring punctuation differences. When in doubt, pick something else.
 - amazon_search must be a valid Spotify search URL in the format https://open.spotify.com/search/Podcast%20Title with the podcast title URL-encoded in the path
 - Your entire response must be valid JSON starting with { and ending with } — nothing else`;
 
@@ -312,8 +312,8 @@ Respond ONLY with valid JSON. Your response must begin with { and end with }. Do
 
 Rules:
 - match_score must be a number between 60 and 99
-- The title must not match any forbidden title in any form: ignoring leading "The", "A", or "An"; ignoring subtitles after a colon or em-dash; ignoring punctuation differences. When in doubt, pick something else.
-- platform should be the primary platform(s), max 2
+- The title must not match any forbidden title in any form: ignoring leading "The", "A", or "An"; ignoring any series prefix before a colon or em-dash (e.g. "Series: Title" matches "Title"); ignoring subtitles after a colon or em-dash (e.g. "Title: Subtitle" matches "Title"); ignoring punctuation differences. When in doubt, pick something else.
+- platform should be the primary platform(s), max 2. Use standard names: PC, PlayStation, Xbox, Switch, iOS, Android — never use "PS5", "PS4", "Xbox Series X", just "PlayStation" or "Xbox"
 - play_time should be concise: "~10hrs", "~50hrs", "~200hrs", "Endless" for live service
 - year should be the release year as a 4-digit string
 - amazon_search must be a valid Amazon search URL (amazon.co.uk) with the game title and primary platform URL-encoded
@@ -337,7 +337,7 @@ Respond ONLY with valid JSON. Your response must begin with { and end with }. Do
 
 Rules:
 - match_score must be a number between 60 and 99
-- The title must not match any forbidden title in any form: ignoring leading "The", "A", or "An"; ignoring subtitles after a colon or em-dash; ignoring punctuation differences. When in doubt, pick something else.
+- The title must not match any forbidden title in any form: ignoring leading "The", "A", or "An"; ignoring any series prefix before a colon or em-dash (e.g. "Series: Title" matches "Title"); ignoring subtitles after a colon or em-dash (e.g. "Title: Subtitle" matches "Title"); ignoring punctuation differences. When in doubt, pick something else.
 - format must be exactly "Series" or "Film"
 - runtime should be concise: for series use "X seasons ~Xhr", for films use "Xhr film"
 - where_to_watch should list the primary streaming platform(s). If on multiple, list up to 2 separated by " / "
@@ -460,7 +460,7 @@ ${itemLines}
 
 Rating key: loved = adored it, liked = enjoyed it, meh = did not connect, abandoned = could not finish, hated = finished but strongly disliked, unrated = no opinion.
 ${dismissContext}
-FORBIDDEN TITLES — do not suggest any of these under any circumstances. Treat a title as forbidden if it matches in any form: ignoring leading "The", "A", or "An"; ignoring subtitles after a colon or em-dash; ignoring punctuation differences. When in doubt, pick something else:
+FORBIDDEN TITLES — do not suggest any of these under any circumstances. Treat a title as forbidden if it matches in any form: ignoring leading "The", "A", or "An"; ignoring any series prefix before a colon or em-dash (e.g. "Series: Title" matches "Title"); ignoring subtitles after a colon or em-dash (e.g. "Title: Subtitle" matches "Title"); ignoring punctuation differences. When in doubt, pick something else:
 ${forbiddenLines}
 
 CURRENTLY SHOWN — these are already visible to the user right now and must also not be suggested:
@@ -523,7 +523,7 @@ ${itemLines}
 
 Rating key: loved = adored it, liked = enjoyed it, meh = did not connect, abandoned = could not finish, hated = finished but strongly disliked, unrated = no opinion.
 
-FORBIDDEN TITLES — do not suggest any of these under any circumstances. Treat a title as forbidden if it matches in any form: ignoring leading "The", "A", or "An"; ignoring subtitles after a colon or em-dash; ignoring punctuation differences. When in doubt, pick something else:
+FORBIDDEN TITLES — do not suggest any of these under any circumstances. Treat a title as forbidden if it matches in any form: ignoring leading "The", "A", or "An"; ignoring any series prefix before a colon or em-dash (e.g. "Series: Title" matches "Title"); ignoring subtitles after a colon or em-dash (e.g. "Title: Subtitle" matches "Title"); ignoring punctuation differences. When in doubt, pick something else:
 ${forbiddenLines}
 
 CURRENTLY SHOWN — these are already visible to the user right now and must also not be suggested:
@@ -578,7 +578,7 @@ ${itemLines}
 
 Rating key: loved = adored it, liked = enjoyed it, meh = did not connect, abandoned = could not finish, hated = finished but strongly disliked, unrated = no opinion.
 
-FORBIDDEN TITLES — do not suggest any of these under any circumstances. Treat a title as forbidden if it matches in any form: ignoring leading "The", "A", or "An"; ignoring subtitles after a colon or em-dash; ignoring punctuation differences. When in doubt, pick something else:
+FORBIDDEN TITLES — do not suggest any of these under any circumstances. Treat a title as forbidden if it matches in any form: ignoring leading "The", "A", or "An"; ignoring any series prefix before a colon or em-dash (e.g. "Series: Title" matches "Title"); ignoring subtitles after a colon or em-dash (e.g. "Title: Subtitle" matches "Title"); ignoring punctuation differences. When in doubt, pick something else:
 ${forbiddenLines}
 
 CURRENTLY SHOWN — these are already visible to the user right now and must also not be suggested:

@@ -756,7 +756,8 @@ function parseGoodreadsCSV(text: string): void {
       ratingRaw === 5 ? "loved"
       : ratingRaw === 4 ? "liked"
       : ratingRaw === 3 ? "meh"
-      : ratingRaw >= 1 ? "hated"
+      : ratingRaw === 2 ? "meh"
+      : ratingRaw === 1 ? "hated"
       : null;
 
     if (rating) rated.push({ title, rating });
@@ -1107,7 +1108,7 @@ function buildShareCardEl(profileText: string, recs: Recommendation[], archetype
   const profileTextEl = document.createElement("p");
   const displayText = archetypeTagline || profileText;
   const isTagline = Boolean(archetypeTagline);
-  profileTextEl.style.cssText = `margin:0;font-size:15px;line-height:1.65;color:${textMuted};text-align:center;${isTagline ? "font-style:italic;" : ""}`;
+  profileTextEl.style.cssText = `margin:0;font-size:15px;line-height:1.65;color:${textMuted};${isTagline ? "font-style:italic;" : ""}`;
   profileTextEl.textContent = displayText;
   topSection.appendChild(profileTextEl);
 
