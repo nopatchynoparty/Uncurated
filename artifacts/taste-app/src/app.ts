@@ -26,6 +26,7 @@ interface ApiResponse {
   short_taste_profile?: string;
   archetype?: string;
   archetype_secondary?: string;
+  archetype_tagline?: string;
   recommendations: Recommendation[];
 }
 
@@ -95,6 +96,7 @@ let currentTasteProfile = "";
 let currentShortTasteProfile = "";
 let currentArchetype = "";
 let currentArchetypeSecondary = "";
+let currentArchetypeTagline = "";
 const seenTitles = new Set<string>();
 let reviewBooks: ScannedBook[] = [];
 
@@ -247,6 +249,7 @@ function clearAll(): void {
   currentShortTasteProfile = "";
   currentArchetype = "";
   currentArchetypeSecondary = "";
+  currentArchetypeTagline = "";
   archetypeDisplay.style.display = "none";
   seenTitles.clear();
   document.querySelector(".error-banner")?.remove();
@@ -273,6 +276,7 @@ function switchCategory(cat: Category): void {
   currentShortTasteProfile = "";
   currentArchetype = "";
   currentArchetypeSecondary = "";
+  currentArchetypeTagline = "";
   archetypeDisplay.style.display = "none";
   seenTitles.clear();
   document.querySelector(".error-banner")?.remove();
@@ -450,6 +454,7 @@ function renderResults(data: ApiResponse): void {
   currentShortTasteProfile = data.short_taste_profile || "";
   currentArchetype = data.archetype || "";
   currentArchetypeSecondary = data.archetype_secondary || "";
+  currentArchetypeTagline = data.archetype_tagline || "";
   currentRecs = [...(data.recommendations || [])].sort((a, b) => b.match_score - a.match_score);
   seenTitles.clear();
   currentRecs.forEach((r) => seenTitles.add(r.title.toLowerCase()));
@@ -1012,7 +1017,7 @@ function truncateAtWordBoundary(text: string, maxChars: number): string {
   return (lastSpace > 0 ? truncated.slice(0, lastSpace) : truncated) + "…";
 }
 
-function buildShareCardEl(profileText: string, recs: Recommendation[], archetype?: string, archetypeSecondary?: string): HTMLElement {
+function buildShareCardEl(profileText: string, recs: Recommendation[], archetype?: string, archetypeSecondary?: string, archetypeTagline?: string): HTMLElement {
   const bg = getCssVar("--bg");
   const surface = getCssVar("--surface");
   const textColor = getCssVar("--text");
@@ -1069,7 +1074,8 @@ function buildShareCardEl(profileText: string, recs: Recommendation[], archetype
 
   if (archetype) {
     const archetypeEl = document.createElement("h2");
-    archetypeEl.style.cssText = `font-family:'DM Serif Display',Georgia,serif;font-size:34px;font-weight:400;line-height:1.2;color:${textColor};margin:0 0 10px;`;
+    const archetypeFontSize = archetype.length > 28 ? 26 : archetype.length >= 20 ? 29 : 34;
+    archetypeEl.style.cssText = `font-family:'DM Serif Display',Georgia,serif;font-size:${archetypeFontSize}px;font-weight:400;line-height:1.2;color:${textColor};margin:0 0 10px;`;
     const emoji = (activeCategory === "games" ? GAMES_ARCHETYPE_ICONS : activeCategory === "watch" ? WATCH_ARCHETYPE_ICONS : ARCHETYPE_ICONS)[archetype];
     if (emoji) {
       const emojiSpan = document.createElement("span");
@@ -1099,8 +1105,10 @@ function buildShareCardEl(profileText: string, recs: Recommendation[], archetype
   topSection.appendChild(sep);
 
   const profileTextEl = document.createElement("p");
-  profileTextEl.style.cssText = `margin:0;font-size:15px;line-height:1.65;color:${textMuted};`;
-  profileTextEl.textContent = profileText;
+  const displayText = archetypeTagline || profileText;
+  const isTagline = Boolean(archetypeTagline);
+  profileTextEl.style.cssText = `margin:0;font-size:15px;line-height:1.65;color:${textMuted};text-align:center;${isTagline ? "font-style:italic;" : ""}`;
+  profileTextEl.textContent = displayText;
   topSection.appendChild(profileTextEl);
 
   wrap.appendChild(topSection);
@@ -1119,7 +1127,7 @@ function buildShareCardEl(profileText: string, recs: Recommendation[], archetype
     titleRow.style.cssText = "display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;gap:16px;";
 
     const titleEl = document.createElement("span");
-    titleEl.style.cssText = `font-family:'DM Serif Display',Georgia,serif;font-size:22px;font-weight:400;line-height:1.25;color:${textColor};flex:1;`;
+    titleEl.style.cssText = `font-family:'DM Serif Display',Georgia,serif;font-size:19px;font-weight:400;line-height:1.25;color:${textColor};flex:1;`;
     titleEl.textContent = top.title;
     titleRow.appendChild(titleEl);
 
@@ -1225,7 +1233,7 @@ async function generateShareCard(): Promise<void> {
     const profileText = currentShortTasteProfile || truncateAtWordBoundary(currentTasteProfile.trim(), 120);
     const topRecs = currentRecs.slice(0, 3);
 
-    const cardEl = buildShareCardEl(profileText, topRecs, currentArchetype || undefined, currentArchetypeSecondary || undefined);
+    const cardEl = buildShareCardEl(profileText, topRecs, currentArchetype || undefined, currentArchetypeSecondary || undefined, currentArchetypeTagline || undefined);
     document.body.appendChild(cardEl);
 
     try {

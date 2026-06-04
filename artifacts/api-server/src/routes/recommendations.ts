@@ -5,7 +5,7 @@ const router = Router();
 
 interface RatedItem {
   name: string;
-  rating: "loved" | "liked" | "meh" | "abandoned" | "unrated";
+  rating: "loved" | "liked" | "meh" | "abandoned" | "hated" | "unrated";
 }
 
 interface RecommendationRequest {
@@ -49,6 +49,7 @@ interface RecommendationResponse {
   short_taste_profile?: string;
   archetype?: string;
   archetype_secondary?: string;
+  archetype_tagline?: string;
   recommendations: Recommendation[];
 }
 
@@ -86,6 +87,7 @@ Respond ONLY with valid JSON. Your response must begin with { and end with }. Do
   "short_taste_profile": "One punchy complete sentence under 120 characters distilling their taste for sharing. Must end with a full stop. Never use '...' or ellipsis. Example: 'A fast-paced military sci-fi reader who wants stakes, action, and protagonists who never quit.'",
   "archetype": "The Dark Escapist",
   "archetype_secondary": "The Compulsive Page-Turner",
+  "archetype_tagline": "reads the last page first and feels no guilt",
   "recommendations": [
     {
       "title": "Book Title",
@@ -99,12 +101,15 @@ Respond ONLY with valid JSON. Your response must begin with { and end with }. Do
 }
 
 Rules:
+- title is the name of the book itself, author is the name of the author — never swap these fields
 - match_score must be a number between 60 and 99
 - Do not recommend anything the user has already listed
+- vibe must be under 50 characters
 - amazon_search must be a valid Amazon search URL (amazon.co.uk) with the book title and author URL-encoded
 - short_taste_profile must be exactly one complete sentence, maximum 120 characters, ending with a full stop — never use '...' or ellipsis, never truncated mid-sentence
 - archetype must be exactly one of these 12 values: "The Dark Escapist", "The Compulsive Page-Turner", "The World-Builder", "The Reluctant Literary", "The True Crime Mind", "The Intellectual Adventurer", "The Comfort Rereader", "The Historical Immersionist", "The Concept Reader", "The Quiet Realist", "The Epic Completionist", "The Atmosphere Chaser"
 - archetype_secondary is optional — only include it if there is a meaningful secondary lean. If the profile is clearly one type, omit it. If included, it must be from the same 12 values and different from archetype
+- archetype_tagline is a short, punchy, lowercase phrase in second or third person that captures this specific person's flavour of their archetype — not a generic description of the archetype itself. It should feel surprising and specific, not generic. Maximum 60 characters. No full stop at the end. Examples: "builds empires for the perfect supply chain, not the glory", "reads the last page first and feels no guilt"
 - Do not apply recency bias. Recommend the best fitting title regardless of release date. Match the era, tone, and style of what the user loved — if their taste skews classic or retro, recommend classic or retro titles rather than modern equivalents.
 - Your entire response must be valid JSON starting with { and ending with } — nothing else`;
 
@@ -138,8 +143,10 @@ Respond ONLY with valid JSON. Your response must begin with { and end with }. Do
 }
 
 Rules:
+- title is the name of the podcast itself, author is the name of the host or creator — never swap these fields
 - match_score must be a number between 60 and 99
 - Do not recommend anything the user has already listed
+- vibe must be under 50 characters
 - amazon_search must be a valid Spotify search URL in the format https://open.spotify.com/search/Podcast%20Title with the podcast title URL-encoded in the path
 - short_taste_profile must be exactly one complete sentence, maximum 120 characters, ending with a full stop — never use '...' or ellipsis, never truncated mid-sentence
 - Your entire response must be valid JSON starting with { and ending with } — nothing else`;
@@ -163,6 +170,7 @@ Respond ONLY with valid JSON. Your response must begin with { and end with }. Do
   "short_taste_profile": "One punchy complete sentence under 120 characters distilling their viewing taste for sharing. Must end with a full stop. Never use '...' or ellipsis. Example: 'A prestige drama fan who wants morally complex characters, slow-burn tension, and no easy answers.'",
   "archetype": "The Prestige Drama Addict",
   "archetype_secondary": "The Slow Burn Devotee",
+  "archetype_tagline": "will watch anything if the cinematography is good enough",
   "recommendations": [
     {
       "title": "Show or Film Title",
@@ -179,16 +187,19 @@ Respond ONLY with valid JSON. Your response must begin with { and end with }. Do
 }
 
 Rules:
+- title is the name of the show or film itself, author is the name of the director or showrunner — never swap these fields
 - match_score must be a number between 60 and 99
 - Do not recommend anything the user has already listed
+- vibe must be under 50 characters
 - format must be exactly "Series" or "Film"
 - runtime should be concise: for series use "X seasons ~Xhr", for films use "Xhr film"
-- where_to_watch should list the primary streaming platform(s). If on multiple, list up to 2 separated by " / "
+- where_to_watch should list the primary streaming platform(s). If on multiple, list up to 2 separated by " / ". Use standard platform names: Netflix, Prime Video, Apple TV+, Disney+, Max, Hulu, Peacock, Paramount+, BBC iPlayer, Channel 4. Abbreviate only if unavoidable.
 - year should be the release year as a 4-digit string
 - short_taste_profile must be exactly one complete sentence, maximum 120 characters, ending with a full stop — never use '...' or ellipsis, never truncated mid-sentence
 - Avoid recommending titles so widely seen and discussed that a regular viewer would almost certainly have already watched them. Prioritise underseen, underrated, or less widely talked-about titles over cultural landmarks — unless the user's watch history suggests they are relatively new to the genre.
 - archetype must be exactly one of these 12 values: "The Prestige Drama Addict", "The Binge Monster", "The Dark & Twisted", "The Feel-Good Faithful", "The True Crime Obsessive", "The Sci-Fi Escapist", "The Comfort Rewatcher", "The Doc Devotee", "The Sharp Comedy Fan", "The Slow Burn Devotee", "The Foreign Language Explorer", "The Underdog Champion"
 - archetype_secondary is optional — only include it if there is a meaningful secondary lean. If the profile is clearly one type, omit it. If included, it must be from the same 12 values and different from archetype
+- archetype_tagline is a short, punchy, lowercase phrase in second or third person that captures this specific person's flavour of their archetype — not a generic description of the archetype itself. It should feel surprising and specific, not generic. Maximum 60 characters. No full stop at the end. Examples: "will watch anything if the cinematography is good enough", "rewatches the pilot to decide if a show is worth finishing"
 - Do not apply recency bias. Recommend the best fitting title regardless of release date. Match the era, tone, and style of what the user loved — if their taste skews classic or retro, recommend classic or retro titles rather than modern equivalents.
 - Your entire response must be valid JSON starting with { and ending with } — nothing else`;
 
@@ -211,6 +222,7 @@ Respond ONLY with valid JSON. Your response must begin with { and end with }. Do
   "short_taste_profile": "One punchy complete sentence under 120 characters distilling their gaming taste for sharing. Must end with a full stop. Never use '...' or ellipsis. Example: 'A story-driven RPG fan who wants rich worlds, meaningful choices, and a narrative that lingers.'",
   "archetype": "The Story Chaser",
   "archetype_secondary": "The Explorer",
+  "archetype_tagline": "builds empires for the perfect supply chain, not the glory",
   "recommendations": [
     {
       "title": "Game Title",
@@ -227,9 +239,11 @@ Respond ONLY with valid JSON. Your response must begin with { and end with }. Do
 }
 
 Rules:
+- title is the name of the game itself, author is the name of the studio — never swap these fields
 - match_score must be a number between 60 and 99
 - Do not recommend anything the user has already listed
-- platform should be the primary platform(s), max 2, e.g. "PC / Switch" or "Multiplatform"
+- vibe must be under 50 characters
+- platform should be the primary platform(s), max 2. Use standard names: PC, PlayStation, Xbox, Switch, iOS, Android — never use "PS5", "PS4", "Xbox Series X", just "PlayStation" or "Xbox"
 - play_time should be concise: "~10hrs", "~50hrs", "~200hrs", "Endless" for live service
 - year should be the release year as a 4-digit string
 - amazon_search must be a valid Amazon search URL (amazon.co.uk) with the game title and primary platform URL-encoded
@@ -237,6 +251,7 @@ Rules:
 - Default bias toward less obvious picks — avoid recommending titles so widely played that an active gamer would almost certainly have already tried them
 - archetype must be exactly one of these 12 values: "The Completionist", "The Story Chaser", "The Hardcore", "The Explorer", "The Strategist", "The Couch Co-op", "The Rogueliker", "The Immersionist", "The Speedrunner", "The Indie Darling", "The Retro Purist", "The Casual Drifter"
 - archetype_secondary is optional — only include it if there is a meaningful secondary lean. If the profile is clearly one type, omit it. If included, it must be from the same 12 values and different from archetype
+- archetype_tagline is a short, punchy, lowercase phrase in second or third person that captures this specific person's flavour of their archetype — not a generic description of the archetype itself. It should feel surprising and specific, not generic. Maximum 60 characters. No full stop at the end. Examples: "builds empires for the perfect supply chain, not the glory", "plays every side quest before touching the main story"
 - Do not apply recency bias. Recommend the best fitting title regardless of release date. Match the era, tone, and style of what the user loved — if their taste skews classic or retro, recommend classic or retro titles rather than modern equivalents.
 - Your entire response must be valid JSON starting with { and ending with } — nothing else`;
 
@@ -255,7 +270,7 @@ Respond ONLY with valid JSON. Your response must begin with { and end with }. Do
 
 Rules:
 - match_score must be a number between 60 and 99
-- The title must not appear in either list above in any form
+- The title must not match any forbidden title in any form: ignoring leading "The", "A", or "An"; ignoring subtitles after a colon or em-dash; ignoring punctuation differences. When in doubt, pick something else.
 - amazon_search must be a valid Amazon search URL (amazon.co.uk) with the book title and author URL-encoded
 - Your entire response must be valid JSON starting with { and ending with } — nothing else`;
 
@@ -274,7 +289,7 @@ Respond ONLY with valid JSON. Your response must begin with { and end with }. Do
 
 Rules:
 - match_score must be a number between 60 and 99
-- The title must not appear in either list above in any form
+- The title must not match any forbidden title in any form: ignoring leading "The", "A", or "An"; ignoring subtitles after a colon or em-dash; ignoring punctuation differences. When in doubt, pick something else.
 - amazon_search must be a valid Spotify search URL in the format https://open.spotify.com/search/Podcast%20Title with the podcast title URL-encoded in the path
 - Your entire response must be valid JSON starting with { and ending with } — nothing else`;
 
@@ -297,7 +312,7 @@ Respond ONLY with valid JSON. Your response must begin with { and end with }. Do
 
 Rules:
 - match_score must be a number between 60 and 99
-- The title must not appear in either list above in any form
+- The title must not match any forbidden title in any form: ignoring leading "The", "A", or "An"; ignoring subtitles after a colon or em-dash; ignoring punctuation differences. When in doubt, pick something else.
 - platform should be the primary platform(s), max 2
 - play_time should be concise: "~10hrs", "~50hrs", "~200hrs", "Endless" for live service
 - year should be the release year as a 4-digit string
@@ -322,7 +337,7 @@ Respond ONLY with valid JSON. Your response must begin with { and end with }. Do
 
 Rules:
 - match_score must be a number between 60 and 99
-- The title must not appear in either list above in any form
+- The title must not match any forbidden title in any form: ignoring leading "The", "A", or "An"; ignoring subtitles after a colon or em-dash; ignoring punctuation differences. When in doubt, pick something else.
 - format must be exactly "Series" or "Film"
 - runtime should be concise: for series use "X seasons ~Xhr", for films use "Xhr film"
 - where_to_watch should list the primary streaming platform(s). If on multiple, list up to 2 separated by " / "
@@ -445,7 +460,7 @@ ${itemLines}
 
 Rating key: loved = adored it, liked = enjoyed it, meh = did not connect, abandoned = could not finish, hated = finished but strongly disliked, unrated = no opinion.
 ${dismissContext}
-FORBIDDEN TITLES — do not suggest any of these under any circumstances. Treat a title as forbidden if it matches in any form, including with or without a series prefix, subtitle, or punctuation differences:
+FORBIDDEN TITLES — do not suggest any of these under any circumstances. Treat a title as forbidden if it matches in any form: ignoring leading "The", "A", or "An"; ignoring subtitles after a colon or em-dash; ignoring punctuation differences. When in doubt, pick something else:
 ${forbiddenLines}
 
 CURRENTLY SHOWN — these are already visible to the user right now and must also not be suggested:
@@ -508,7 +523,7 @@ ${itemLines}
 
 Rating key: loved = adored it, liked = enjoyed it, meh = did not connect, abandoned = could not finish, hated = finished but strongly disliked, unrated = no opinion.
 
-FORBIDDEN TITLES — do not suggest any of these under any circumstances. Treat a title as forbidden if it matches in any form, including with or without a series prefix, subtitle, or punctuation differences:
+FORBIDDEN TITLES — do not suggest any of these under any circumstances. Treat a title as forbidden if it matches in any form: ignoring leading "The", "A", or "An"; ignoring subtitles after a colon or em-dash; ignoring punctuation differences. When in doubt, pick something else:
 ${forbiddenLines}
 
 CURRENTLY SHOWN — these are already visible to the user right now and must also not be suggested:
@@ -563,7 +578,7 @@ ${itemLines}
 
 Rating key: loved = adored it, liked = enjoyed it, meh = did not connect, abandoned = could not finish, hated = finished but strongly disliked, unrated = no opinion.
 
-FORBIDDEN TITLES — do not suggest any of these under any circumstances. Treat a title as forbidden if it matches in any form, including with or without a series prefix, subtitle, or punctuation differences:
+FORBIDDEN TITLES — do not suggest any of these under any circumstances. Treat a title as forbidden if it matches in any form: ignoring leading "The", "A", or "An"; ignoring subtitles after a colon or em-dash; ignoring punctuation differences. When in doubt, pick something else:
 ${forbiddenLines}
 
 CURRENTLY SHOWN — these are already visible to the user right now and must also not be suggested:
