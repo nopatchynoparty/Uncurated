@@ -977,7 +977,7 @@ async function resizeImageForScan(file: File): Promise<string> {
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Failed to load image")); };
     img.onload = () => {
       URL.revokeObjectURL(url);
-      const MAX = 1280;
+      const MAX = 960;
       let { width, height } = img;
       if (width > MAX || height > MAX) {
         if (width > height) {
@@ -992,7 +992,7 @@ async function resizeImageForScan(file: File): Promise<string> {
       canvas.width = width;
       canvas.height = height;
       canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL("image/jpeg", 0.82));
+      resolve(canvas.toDataURL("image/jpeg", 0.72));
     };
     img.src = url;
   });
@@ -1007,7 +1007,7 @@ async function handleShelfScan(file: File): Promise<void> {
     const imageData = await resizeImageForScan(file);
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60_000);
+    const timeoutId = setTimeout(() => controller.abort(), 100_000);
     let res: Response;
     try {
       res = await fetch("/api/scan-shelf", {
