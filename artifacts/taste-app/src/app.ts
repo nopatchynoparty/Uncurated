@@ -1007,18 +1007,29 @@ async function handleShelfScan(file: File): Promise<void> {
     const imageData = await resizeImageForScan(file);
 
     // Submit the scan job — server responds immediately with a jobId.
-    const startRes = await fetch("/api/scan-shelf", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ image: imageData }),
-    });
-
-    if (!startRes.ok) {
-      const err = (await startRes.json().catch(() => ({}))) as { error?: string };
-      throw new Error(err.error || `Server error ${startRes.status}`);
+    // Retry up to 3 times on a proxy-level 403 (Replit cold-start returns an
+    // HTML forbidden page before the backend instance is ready).
+    let jobId: string | undefined;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) await new Promise((r) => setTimeout(r, 2_000));
+      const startRes = await fetch("/api/scan-shelf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: imageData }),
+      });
+      if (startRes.ok) {
+        ({ jobId } = (await startRes.json()) as { jobId: string });
+        break;
+      }
+      const ct = startRes.headers.get("content-type") ?? "";
+      if (startRes.status !== 403 || ct.includes("json")) {
+        const err = (await startRes.json().catch(() => ({}))) as { error?: string };
+        throw new Error(err.error || `Server error ${startRes.status}`);
+      }
+      // HTML 403 = Replit proxy cold-start — discard body and retry
+      await startRes.body?.cancel();
     }
-
-    const { jobId } = (await startRes.json()) as { jobId: string };
+    if (!jobId) throw new Error("Couldn't reach the scanner. Please try again.");
 
     // Poll for the result every 2 seconds for up to 2 minutes.
     const MAX_WAIT = 120_000;
@@ -1026,8 +1037,12 @@ async function handleShelfScan(file: File): Promise<void> {
     const pollStart = Date.now();
 
     while (true) {
-      if (Date.now() - pollStart > MAX_WAIT) {
+      const elapsed = Date.now() - pollStart;
+      if (elapsed > MAX_WAIT) {
         throw new Error("Scan timed out. Please try again.");
+      }
+      if (elapsed > 15_000) {
+        scanBtn.innerHTML = `<span class="import-btn-spinner" aria-hidden="true"></span>Still scanning…`;
       }
 
       await new Promise((r) => setTimeout(r, POLL_INTERVAL));
