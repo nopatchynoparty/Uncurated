@@ -1006,62 +1006,54 @@ async function handleShelfScan(file: File): Promise<void> {
   try {
     const imageData = await resizeImageForScan(file);
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 100_000);
-    let res: Response;
-    try {
-      res = await fetch("/api/scan-shelf", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: imageData }),
-        signal: controller.signal,
-      });
-    } catch (fetchErr) {
-      if (fetchErr instanceof Error && fetchErr.name === "AbortError") {
+    // Submit the scan job — server responds immediately with a jobId.
+    const startRes = await fetch("/api/scan-shelf", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image: imageData }),
+    });
+
+    if (!startRes.ok) {
+      const err = (await startRes.json().catch(() => ({}))) as { error?: string };
+      throw new Error(err.error || `Server error ${startRes.status}`);
+    }
+
+    const { jobId } = (await startRes.json()) as { jobId: string };
+
+    // Poll for the result every 2 seconds for up to 2 minutes.
+    const MAX_WAIT = 120_000;
+    const POLL_INTERVAL = 2_000;
+    const pollStart = Date.now();
+
+    while (true) {
+      if (Date.now() - pollStart > MAX_WAIT) {
         throw new Error("Scan timed out. Please try again.");
       }
-      throw fetchErr;
-    } finally {
-      clearTimeout(timeoutId);
-    }
 
-    // Server responds with SSE (text/event-stream) to bypass proxy buffering.
-    // Read the stream chunk-by-chunk and extract the first `data:` line.
-    const data = await (async () => {
-      const reader = res.body!.getReader();
-      const decoder = new TextDecoder();
-      let buf = "";
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buf += decoder.decode(value, { stream: true });
-          for (const line of buf.split("\n")) {
-            if (line.startsWith("data: ")) {
-              return JSON.parse(line.slice(6)) as {
-                books?: Array<{ title: string; author: string; confidence: "high" | "medium" }>;
-                unreadable_count?: number;
-                error?: string;
-              };
-            }
-          }
-        }
-      } finally {
-        reader.cancel();
+      await new Promise((r) => setTimeout(r, POLL_INTERVAL));
+
+      const statusRes = await fetch(`/api/scan-shelf/status/${jobId}`);
+      if (statusRes.status === 404) throw new Error("Scan job expired. Please try again.");
+
+      const data = (await statusRes.json()) as {
+        pending?: boolean;
+        books?: Array<{ title: string; author: string; confidence: "high" | "medium" }>;
+        unreadable_count?: number;
+        error?: string;
+      };
+
+      if (data.pending) continue;
+
+      if (data.error) throw new Error(data.error);
+
+      if (!data.books || data.books.length === 0) {
+        showScanError("No book titles were readable in this photo. Try better lighting or a closer shot.");
+        return;
       }
-      return {} as { books?: Array<{ title: string; author: string; confidence: "high" | "medium" }>; unreadable_count?: number; error?: string };
-    })();
 
-    if (data.error) {
-      throw new Error(data.error);
-    }
-
-    if (!data.books || data.books.length === 0) {
-      showScanError("No book titles were readable in this photo. Try better lighting or a closer shot.");
+      showShelfReview(data.books, data.unreadable_count ?? 0);
       return;
     }
-
-    showShelfReview(data.books!, data.unreadable_count ?? 0);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Something went wrong. Please try again.";
     showScanError(msg);

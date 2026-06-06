@@ -1,5 +1,7 @@
 import { Router } from "express";
 import Anthropic from "@anthropic-ai/sdk";
+import { randomUUID } from "node:crypto";
+import { logger } from "../lib/logger.js";
 
 const router = Router();
 
@@ -19,7 +21,24 @@ interface ScanResult {
   unreadable_count: number;
 }
 
-// Singleton — one HTTP client for the lifetime of the process
+type JobResult = ScanResult | { error: string };
+
+interface ScanJob {
+  result?: JobResult;
+  createdAt: number;
+}
+
+// In-memory job store. Works for single-instance deployments (Replit).
+const jobs = new Map<string, ScanJob>();
+
+// Expire jobs older than 5 minutes.
+setInterval(() => {
+  const cutoff = Date.now() - 5 * 60_000;
+  for (const [id, job] of jobs) {
+    if (job.createdAt < cutoff) jobs.delete(id);
+  }
+}, 60_000).unref();
+
 let _client: Anthropic | null = null;
 function getClient(): Anthropic | null {
   const apiKey = process.env["CLAUDE_API_KEY"];
@@ -28,13 +47,84 @@ function getClient(): Anthropic | null {
   return _client;
 }
 
-router.post("/scan-shelf", async (req, res) => {
+async function runScan(
+  jobId: string,
+  mediaType: "image/jpeg" | "image/png" | "image/webp",
+  base64Data: string,
+): Promise<void> {
   const client = getClient();
   if (!client) {
-    res.status(500).json({ error: "CLAUDE_API_KEY is not configured." });
+    jobs.get(jobId)!.result = { error: "CLAUDE_API_KEY is not configured." };
     return;
   }
 
+  try {
+    const message = await client.messages.create(
+      {
+        model: MODEL,
+        max_tokens: 2048,
+        system: [{ type: "text", text: SCAN_SYSTEM, cache_control: { type: "ephemeral" } }],
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "image",
+                source: { type: "base64", media_type: mediaType, data: base64Data },
+              },
+            ],
+          },
+        ],
+      },
+      { timeout: 90_000 },
+    );
+
+    const raw = message.content[0].type === "text" ? message.content[0].text : "";
+    const start = raw.indexOf("{");
+    const end = raw.lastIndexOf("}");
+    const cleaned =
+      start !== -1 && end > start
+        ? raw.slice(start, end + 1)
+        : raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+
+    let parsed: ScanResult;
+    try {
+      parsed = JSON.parse(cleaned) as ScanResult;
+    } catch {
+      logger.error({ raw }, "Failed to parse shelf scan JSON");
+      jobs.get(jobId)!.result = { error: "Couldn't read the bookshelf. Please try a clearer photo." };
+      return;
+    }
+
+    if (!Array.isArray(parsed.books)) {
+      jobs.get(jobId)!.result = { error: "Unexpected scanner response. Please try again." };
+      return;
+    }
+
+    const books: ScanBook[] = parsed.books
+      .filter((b) => b.title && typeof b.title === "string")
+      .map((b) => ({
+        title: String(b.title).slice(0, 200),
+        author: String(b.author ?? "").slice(0, 200),
+        confidence: b.confidence === "medium" ? "medium" : "high",
+      }));
+
+    jobs.get(jobId)!.result = {
+      books,
+      unreadable_count:
+        typeof parsed.unreadable_count === "number"
+          ? Math.max(0, Math.round(parsed.unreadable_count))
+          : 0,
+    };
+  } catch (err) {
+    logger.error({ err }, "Shelf scan error");
+    jobs.get(jobId)!.result = { error: "Something went wrong scanning your shelf. Please try again." };
+  }
+}
+
+// POST /api/scan-shelf — validate the image, enqueue the scan, return a job ID immediately.
+// The long Anthropic call runs in the background; client polls /api/scan-shelf/status/:jobId.
+router.post("/scan-shelf", (req, res) => {
   const { image } = req.body as { image?: string };
 
   if (!image || typeof image !== "string") {
@@ -56,82 +146,28 @@ router.post("/scan-shelf", async (req, res) => {
     return;
   }
 
-  // Use SSE (text/event-stream) so Replit's reverse proxy doesn't buffer the
-  // response body. Plain JSON responses are buffered until complete, meaning
-  // keep-alive writes never reach the client. SSE streams pass through immediately.
-  // X-Accel-Buffering: no is an extra hint for nginx-based proxies.
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("X-Accel-Buffering", "no");
-  res.flushHeaders();
+  const jobId = randomUUID();
+  jobs.set(jobId, { createdAt: Date.now() });
 
-  // SSE comment lines (": ping") act as keep-alive without affecting the data stream.
-  const keepAlive = setInterval(() => {
-    try { res.write(": ping\n\n"); } catch { /* client gone */ }
-  }, 15_000);
+  void runScan(jobId, mediaType, base64Data);
 
-  const finish = (payload: object) => {
-    clearInterval(keepAlive);
-    res.write(`data: ${JSON.stringify(payload)}\n\n`);
-    res.end();
-  };
+  res.json({ jobId });
+});
 
-  try {
-    const message = await client.messages.create({
-      model: MODEL,
-      max_tokens: 2048,
-      system: [{ type: "text", text: SCAN_SYSTEM, cache_control: { type: "ephemeral" } }],
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "image",
-              source: { type: "base64", media_type: mediaType, data: base64Data },
-            },
-          ],
-        },
-      ],
-    }, { timeout: 90_000 });
-
-    const raw = message.content[0].type === "text" ? message.content[0].text : "";
-    const start = raw.indexOf("{");
-    const end = raw.lastIndexOf("}");
-    const cleaned = start !== -1 && end > start ? raw.slice(start, end + 1) : raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
-
-    let parsed: ScanResult;
-    try {
-      parsed = JSON.parse(cleaned) as ScanResult;
-    } catch {
-      req.log.error({ raw }, "Failed to parse shelf scan JSON");
-      finish({ error: "Couldn't read the bookshelf. Please try a clearer photo." });
-      return;
-    }
-
-    if (!Array.isArray(parsed.books)) {
-      finish({ error: "Unexpected scanner response. Please try again." });
-      return;
-    }
-
-    const books: ScanBook[] = parsed.books
-      .filter((b) => b.title && typeof b.title === "string")
-      .map((b) => ({
-        title: String(b.title).slice(0, 200),
-        author: String(b.author ?? "").slice(0, 200),
-        confidence: b.confidence === "medium" ? "medium" : "high",
-      }));
-
-    finish({
-      books,
-      unreadable_count:
-        typeof parsed.unreadable_count === "number"
-          ? Math.max(0, Math.round(parsed.unreadable_count))
-          : 0,
-    });
-  } catch (err) {
-    req.log.error({ err }, "Shelf scan error");
-    finish({ error: "Something went wrong scanning your shelf. Please try again." });
+// GET /api/scan-shelf/status/:jobId — returns { pending: true } while running, or the result.
+router.get("/scan-shelf/status/:jobId", (req, res) => {
+  const job = jobs.get(req.params["jobId"]!);
+  if (!job) {
+    res.status(404).json({ error: "Scan job not found or expired." });
+    return;
   }
+  if (!job.result) {
+    res.json({ pending: true });
+    return;
+  }
+  const result = job.result;
+  jobs.delete(req.params["jobId"]!);
+  res.json(result);
 });
 
 export default router;
