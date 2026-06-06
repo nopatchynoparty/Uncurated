@@ -60,7 +60,7 @@ router.post("/scan-shelf", async (req, res) => {
   try {
     const message = await client.messages.create({
       model: MODEL,
-      max_tokens: 512,
+      max_tokens: 2048,
       system: [{ type: "text", text: SCAN_SYSTEM, cache_control: { type: "ephemeral" } }],
       messages: [
         {
