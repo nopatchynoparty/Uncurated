@@ -1025,22 +1025,22 @@ async function handleShelfScan(file: File): Promise<void> {
       clearTimeout(timeoutId);
     }
 
-    if (!res.ok) {
-      const err = (await res.json().catch(() => ({}))) as { error?: string };
-      throw new Error(err.error || `Server error ${res.status}`);
-    }
-
-    const data = (await res.json()) as {
-      books: Array<{ title: string; author: string; confidence: "high" | "medium" }>;
-      unreadable_count: number;
+    const data = (await res.json().catch(() => ({}))) as {
+      books?: Array<{ title: string; author: string; confidence: "high" | "medium" }>;
+      unreadable_count?: number;
+      error?: string;
     };
 
-    if (data.books.length === 0) {
+    if (!res.ok || data.error) {
+      throw new Error(data.error || `Server error ${res.status}`);
+    }
+
+    if (!data.books || data.books.length === 0) {
       showScanError("No book titles were readable in this photo. Try better lighting or a closer shot.");
       return;
     }
 
-    showShelfReview(data.books, data.unreadable_count);
+    showShelfReview(data.books!, data.unreadable_count ?? 0);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Something went wrong. Please try again.";
     showScanError(msg);

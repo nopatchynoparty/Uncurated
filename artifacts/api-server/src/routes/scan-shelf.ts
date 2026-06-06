@@ -51,11 +51,27 @@ router.post("/scan-shelf", async (req, res) => {
   const mediaType = match[1] as "image/jpeg" | "image/png" | "image/webp";
   const base64Data = match[2];
 
-  // base64 of a 7MB image is ~9.3M chars
   if (base64Data.length > 10_000_000) {
     res.status(400).json({ error: "Image too large. Please use a smaller photo (under ~6MB)." });
     return;
   }
+
+  // Flush headers immediately so the Google Frontend proxy doesn't close the
+  // connection while we wait for the Anthropic response (which can take 20-40s).
+  // After this point errors are encoded as JSON in a 200 body.
+  res.setHeader("Content-Type", "application/json");
+  res.flushHeaders();
+
+  // Send a space every 15s as a keep-alive chunk so the proxy sees active data.
+  const keepAlive = setInterval(() => {
+    try { res.write(" "); } catch { /* client gone */ }
+  }, 15_000);
+
+  const finish = (payload: object) => {
+    clearInterval(keepAlive);
+    // Trim leading whitespace the client may have received from keep-alive writes.
+    res.end(JSON.stringify(payload));
+  };
 
   try {
     const message = await client.messages.create({
@@ -85,12 +101,12 @@ router.post("/scan-shelf", async (req, res) => {
       parsed = JSON.parse(cleaned) as ScanResult;
     } catch {
       req.log.error({ raw }, "Failed to parse shelf scan JSON");
-      res.status(502).json({ error: "Couldn't read the bookshelf. Please try a clearer photo." });
+      finish({ error: "Couldn't read the bookshelf. Please try a clearer photo." });
       return;
     }
 
     if (!Array.isArray(parsed.books)) {
-      res.status(502).json({ error: "Unexpected scanner response. Please try again." });
+      finish({ error: "Unexpected scanner response. Please try again." });
       return;
     }
 
@@ -102,7 +118,7 @@ router.post("/scan-shelf", async (req, res) => {
         confidence: b.confidence === "medium" ? "medium" : "high",
       }));
 
-    res.json({
+    finish({
       books,
       unreadable_count:
         typeof parsed.unreadable_count === "number"
@@ -111,7 +127,7 @@ router.post("/scan-shelf", async (req, res) => {
     });
   } catch (err) {
     req.log.error({ err }, "Shelf scan error");
-    res.status(502).json({ error: "Something went wrong scanning your shelf. Please try again." });
+    finish({ error: "Something went wrong scanning your shelf. Please try again." });
   }
 });
 
