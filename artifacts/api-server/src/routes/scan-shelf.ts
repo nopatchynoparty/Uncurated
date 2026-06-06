@@ -73,7 +73,7 @@ router.post("/scan-shelf", async (req, res) => {
           ],
         },
       ],
-    });
+    }, { timeout: 55_000 });
 
     const raw = message.content[0].type === "text" ? message.content[0].text : "";
     const start = raw.indexOf("{");

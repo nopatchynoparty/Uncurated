@@ -1006,11 +1006,24 @@ async function handleShelfScan(file: File): Promise<void> {
   try {
     const imageData = await resizeImageForScan(file);
 
-    const res = await fetch("/api/scan-shelf", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ image: imageData }),
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60_000);
+    let res: Response;
+    try {
+      res = await fetch("/api/scan-shelf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: imageData }),
+        signal: controller.signal,
+      });
+    } catch (fetchErr) {
+      if (fetchErr instanceof Error && fetchErr.name === "AbortError") {
+        throw new Error("Scan timed out. Please try again.");
+      }
+      throw fetchErr;
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (!res.ok) {
       const err = (await res.json().catch(() => ({}))) as { error?: string };
