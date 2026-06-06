@@ -225,7 +225,14 @@
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               Share my recommendations
             </button>
-          <button class="clear-btn start-over-btn" id="start-over-btn" type="button">Start over</button>
+            <div id="indie-bookstore-cta" class="indie-bookstore-cta-inner" style="display:none">
+              <div class="email-share-divider"><span>or</span></div>
+              <button class="share-card-btn" id="indie-bookstore-btn" type="button">
+                <i class="ti ti-map-pin"></i>
+                Find your nearest indie bookstore
+              </button>
+            </div>
+            <button class="clear-btn start-over-btn" id="start-over-btn" type="button">Start over</button>
           </div>
         </section>
       </main>
@@ -314,6 +321,22 @@
         <ul class="shelf-review-list" id="shelf-review-list"></ul>
         <div class="shelf-review-footer">
           <button class="shelf-review-confirm-btn" id="shelf-review-confirm" type="button">Add books</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Indie bookstore modal -->
+    <div class="scan-overlay" id="indie-store-overlay" style="display:none" role="dialog" aria-modal="true" aria-labelledby="indie-store-title">
+      <div class="scan-modal shelf-review-modal indie-store-modal">
+        <div class="shelf-review-header">
+          <h3 class="shelf-review-title" id="indie-store-title">Indie bookstores near you</h3>
+          <button class="shelf-review-close" id="indie-store-close" type="button" aria-label="Close">×</button>
+        </div>
+        <div id="indie-store-content" class="indie-store-content">
+          <!-- filled by JS: loading / list / error -->
+        </div>
+        <div class="shelf-review-footer indie-store-footer">
+          <a class="indie-store-fallback-link" href="https://www.booksellers.org.uk/bookshopsearch" target="_blank" rel="noopener noreferrer">Browse all on Booksellers Association →</a>
         </div>
       </div>
     </div>

@@ -1265,6 +1265,104 @@ body {
   cursor: not-allowed;
 }
 
+.indie-bookstore-cta-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Indie store modal content */
+.indie-store-content {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  max-height: calc(80vh - 130px);
+  padding: 12px 24px;
+}
+
+.indie-store-loading,
+.indie-store-empty {
+  font-size: 14px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 16px 0;
+  margin: 0;
+}
+
+.indie-store-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.indie-store-card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.indie-store-name-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.indie-store-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.indie-store-dist {
+  font-size: 12px;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.indie-store-addr {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.indie-store-links {
+  display: flex;
+  gap: 12px;
+  margin-top: 2px;
+}
+
+.indie-store-link {
+  font-size: 12px;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.indie-store-link:hover {
+  text-decoration: underline;
+}
+
+.indie-store-footer {
+  text-align: center;
+}
+
+.indie-store-fallback-link {
+  font-size: 13px;
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.indie-store-fallback-link:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
 /* Email CTA */
 .email-cta {
   padding-top: 28px;
@@ -1358,6 +1456,10 @@ body {
 .footer-link {
   color: #888888;
   text-decoration: none;
+}
+
+.footer-link:hover {
+  color: var(--text-muted);
 }
 
 /* Mobile */

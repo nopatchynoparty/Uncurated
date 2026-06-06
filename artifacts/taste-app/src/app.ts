@@ -37,6 +37,14 @@ interface ScannedBook {
   confidence: "high" | "medium";
 }
 
+interface OsmElement {
+  type: "node" | "way";
+  lat?: number;
+  lon?: number;
+  center?: { lat: number; lon: number };
+  tags?: Record<string, string>;
+}
+
 type Category = "books" | "podcasts" | "watch" | "games";
 
 const ARCHETYPE_ICONS: Record<string, string> = {
@@ -137,7 +145,7 @@ const CATEGORY_CONFIG: Record<Category, {
     minError: "Add at least 3 shows or films to get a good recommendation.",
   },
   games: {
-    label: "WHAT HAVE YOU PLAYED?",
+    label: "What games have you played?",
     placeholder: "e.g. Elden Ring, The Last of Us, Hades…",
     dismissBtn: "I've played this",
     linkText: "Find on Amazon →",
@@ -193,6 +201,12 @@ const deepCutsCheckbox = document.getElementById("deep-cuts-checkbox") as HTMLIn
 const gamesOptions = document.getElementById("games-options") as HTMLElement;
 const gamesDeepCutsCheckbox = document.getElementById("games-deep-cuts-checkbox") as HTMLInputElement;
 const emailCta = document.getElementById("email-cta") as HTMLElement;
+const indieBookstoreCta = document.getElementById("indie-bookstore-cta") as HTMLElement;
+const indieBookstoreBtn = document.getElementById("indie-bookstore-btn") as HTMLButtonElement;
+const indieStoreOverlay = document.getElementById("indie-store-overlay") as HTMLElement;
+const indieStoreContent = document.getElementById("indie-store-content") as HTMLElement;
+const indieStoreClose        = document.getElementById("indie-store-close")        as HTMLButtonElement;
+const indieStoreFallbackLink = document.querySelector(".indie-store-fallback-link") as HTMLAnchorElement;
 const exampleSection = document.getElementById("example-section") as HTMLElement;
 const emailInput = document.getElementById("email-input") as HTMLInputElement;
 const emailSendBtn = document.getElementById("email-send-btn") as HTMLButtonElement;
@@ -352,6 +366,11 @@ function updateCta(): void {
   if (items.length === 0) itemsSection.style.display = "none";
   exampleSection.style.display = items.length === 0 && activeCategory === "books" ? "flex" : "none";
   findBtn.disabled = items.length < 3;
+  if (items.length >= 1 && items.length < 3) {
+    findBtnText.textContent = `Add ${3 - items.length} more to continue`;
+  } else {
+    findBtnText.textContent = "Find my recommendations";
+  }
 }
 
 function fillRecCard(li: HTMLElement, rec: Recommendation): void {
@@ -493,6 +512,7 @@ function renderResults(data: ApiResponse): void {
   shareCardBtn.textContent = "Share my recommendations";
   shareCardBtn.querySelector("svg")?.removeAttribute("style");
   emailCta.style.display = "flex";
+  indieBookstoreCta.style.display = activeCategory === "books" ? "flex" : "none";
 
   resultsSection.style.display = "flex";
   resultsSection.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -679,9 +699,151 @@ function buildShareText(): string {
   );
 }
 
+function getIndieDirectory(): { url: string; label: string; name: string } {
+  const lang = (navigator.language ?? "").toLowerCase();
+  if (lang.startsWith("en-us") || lang.startsWith("en-ca")) {
+    return { url: "https://bookshop.org", label: "Browse on Bookshop.org →", name: "Bookshop.org" };
+  }
+  return {
+    url: "https://www.booksellers.org.uk/bookshopsearch",
+    label: "Browse on Booksellers Association →",
+    name: "Booksellers Association",
+  };
+}
+
+const indieDir = getIndieDirectory();
+indieStoreFallbackLink.href = indieDir.url;
+indieStoreFallbackLink.textContent = indieDir.label;
+
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371, toRad = (d: number) => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function showIndieStoreError(): void {
+  indieStoreContent.innerHTML = "";
+  const p = document.createElement("p");
+  p.className = "indie-store-empty";
+  p.textContent = `Couldn’t find your location or load stores. Try the ${indieDir.name} link below.`;
+  indieStoreContent.appendChild(p);
+}
+
+function renderIndieStores(elements: OsmElement[], userLat: number, userLng: number): void {
+  const stores = elements
+    .filter(e => e.tags?.name)
+    .map(e => ({ ...e, distKm: haversineKm(userLat, userLng, e.lat ?? e.center?.lat ?? 0, e.lon ?? e.center?.lon ?? 0) }))
+    .sort((a, b) => a.distKm - b.distKm);
+
+  indieStoreContent.innerHTML = "";
+
+  if (stores.length === 0) {
+    const p = document.createElement("p");
+    p.className = "indie-store-empty";
+    p.textContent = `No bookstores found nearby. Try the ${indieDir.name} link below.`;
+    indieStoreContent.appendChild(p);
+    return;
+  }
+
+  const ul = document.createElement("ul");
+  ul.className = "indie-store-list";
+
+  stores.forEach(s => {
+    const t = s.tags!;
+    const addrParts = [t["addr:housenumber"], t["addr:street"], t["addr:city"]].filter(Boolean);
+    const distLabel = s.distKm < 1 ? `${Math.round(s.distKm * 1000)} m` : `${s.distKm.toFixed(1)} km`;
+
+    const li = document.createElement("li");
+    li.className = "indie-store-card";
+
+    const nameRow = document.createElement("div");
+    nameRow.className = "indie-store-name-row";
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "indie-store-name";
+    nameSpan.textContent = t.name!;
+    const distSpan = document.createElement("span");
+    distSpan.className = "indie-store-dist";
+    distSpan.textContent = distLabel;
+    nameRow.appendChild(nameSpan);
+    nameRow.appendChild(distSpan);
+    li.appendChild(nameRow);
+
+    if (addrParts.length > 0) {
+      const addrSpan = document.createElement("span");
+      addrSpan.className = "indie-store-addr";
+      addrSpan.textContent = addrParts.join(", ");
+      li.appendChild(addrSpan);
+    }
+
+    const linksDiv = document.createElement("div");
+    linksDiv.className = "indie-store-links";
+    if (t.phone) {
+      const a = document.createElement("a");
+      a.className = "indie-store-link";
+      a.href = `tel:${t.phone}`;
+      a.textContent = t.phone;
+      linksDiv.appendChild(a);
+    }
+    if (t.website) {
+      const a = document.createElement("a");
+      a.className = "indie-store-link";
+      a.href = t.website;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.textContent = "Website →";
+      linksDiv.appendChild(a);
+    }
+    if (linksDiv.children.length > 0) li.appendChild(linksDiv);
+
+    ul.appendChild(li);
+  });
+
+  indieStoreContent.appendChild(ul);
+}
+
+function closeIndieStore(): void {
+  indieStoreOverlay.style.display = "none";
+  document.body.style.overflow = "";
+}
+
+function openIndieFinder(): void {
+  indieStoreOverlay.style.display = "flex";
+  document.body.style.overflow = "hidden";
+  indieStoreContent.innerHTML = "";
+  const p = document.createElement("p");
+  p.className = "indie-store-loading";
+  p.textContent = "Finding bookstores near you…";
+  indieStoreContent.appendChild(p);
+
+  if (!navigator.geolocation) { showIndieStoreError(); return; }
+
+  navigator.geolocation.getCurrentPosition(
+    async ({ coords }) => {
+      try {
+        const q = `[out:json][timeout:10];(node["shop"="books"](around:8000,${coords.latitude},${coords.longitude});way["shop"="books"](around:8000,${coords.latitude},${coords.longitude}););out center;`;
+        const res = await fetch("https://overpass-api.de/api/interpreter", { method: "POST", body: q });
+        if (!res.ok) throw new Error();
+        const data = await res.json() as { elements: OsmElement[] };
+        renderIndieStores(data.elements, coords.latitude, coords.longitude);
+      } catch {
+        showIndieStoreError();
+      }
+    },
+    () => showIndieStoreError(),
+    { timeout: 8000 }
+  );
+}
+
 async function copyProfile(): Promise<void> {
   const text = buildShareText();
   if (!text) return;
+  if (navigator.share) {
+    try {
+      await navigator.share({ text });
+    } catch { /* user dismissed — no-op */ }
+    return;
+  }
   try {
     await navigator.clipboard.writeText(text);
     copyBtn.classList.add("copied");
@@ -1349,6 +1511,7 @@ async function sendEmail(): Promise<void> {
       throw new Error(err.error || `Server error ${res.status}`);
     }
 
+    emailInput.value = "";
     emailStatus.textContent = "Sent! Check your inbox.";
     emailStatus.className = "email-cta-status success";
     emailSendBtn.textContent = "Sent";
@@ -1369,7 +1532,17 @@ findBtn.addEventListener("click", fetchRecommendations);
 clearBtn.addEventListener("click", clearAll);
 startOverBtn.addEventListener("click", clearAll);
 copyBtn.addEventListener("click", copyProfile);
+indieBookstoreBtn.addEventListener("click", openIndieFinder);
+indieStoreClose.addEventListener("click", closeIndieStore);
+indieStoreOverlay.addEventListener("click", (e) => { if (e.target === indieStoreOverlay) closeIndieStore(); });
 emailSendBtn.addEventListener("click", sendEmail);
 emailInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") sendEmail();
+});
+
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  if (shelfTipOverlay.style.display !== "none") { hideShelfTip(); return; }
+  if (shelfReviewOverlay.style.display !== "none") { closeShelfReview(); return; }
+  if (indieStoreOverlay.style.display !== "none") { closeIndieStore(); return; }
 });
