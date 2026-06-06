@@ -56,21 +56,24 @@ router.post("/scan-shelf", async (req, res) => {
     return;
   }
 
-  // Flush headers immediately so the Google Frontend proxy doesn't close the
-  // connection while we wait for the Anthropic response (which can take 20-40s).
-  // After this point errors are encoded as JSON in a 200 body.
-  res.setHeader("Content-Type", "application/json");
+  // Use SSE (text/event-stream) so Replit's reverse proxy doesn't buffer the
+  // response body. Plain JSON responses are buffered until complete, meaning
+  // keep-alive writes never reach the client. SSE streams pass through immediately.
+  // X-Accel-Buffering: no is an extra hint for nginx-based proxies.
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("X-Accel-Buffering", "no");
   res.flushHeaders();
 
-  // Send a space every 15s as a keep-alive chunk so the proxy sees active data.
+  // SSE comment lines (": ping") act as keep-alive without affecting the data stream.
   const keepAlive = setInterval(() => {
-    try { res.write(" "); } catch { /* client gone */ }
+    try { res.write(": ping\n\n"); } catch { /* client gone */ }
   }, 15_000);
 
   const finish = (payload: object) => {
     clearInterval(keepAlive);
-    // Trim leading whitespace the client may have received from keep-alive writes.
-    res.end(JSON.stringify(payload));
+    res.write(`data: ${JSON.stringify(payload)}\n\n`);
+    res.end();
   };
 
   try {

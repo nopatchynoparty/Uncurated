@@ -1025,14 +1025,35 @@ async function handleShelfScan(file: File): Promise<void> {
       clearTimeout(timeoutId);
     }
 
-    const data = (await res.json().catch(() => ({}))) as {
-      books?: Array<{ title: string; author: string; confidence: "high" | "medium" }>;
-      unreadable_count?: number;
-      error?: string;
-    };
+    // Server responds with SSE (text/event-stream) to bypass proxy buffering.
+    // Read the stream chunk-by-chunk and extract the first `data:` line.
+    const data = await (async () => {
+      const reader = res.body!.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          for (const line of buf.split("\n")) {
+            if (line.startsWith("data: ")) {
+              return JSON.parse(line.slice(6)) as {
+                books?: Array<{ title: string; author: string; confidence: "high" | "medium" }>;
+                unreadable_count?: number;
+                error?: string;
+              };
+            }
+          }
+        }
+      } finally {
+        reader.cancel();
+      }
+      return {} as { books?: Array<{ title: string; author: string; confidence: "high" | "medium" }>; unreadable_count?: number; error?: string };
+    })();
 
-    if (!res.ok || data.error) {
-      throw new Error(data.error || `Server error ${res.status}`);
+    if (data.error) {
+      throw new Error(data.error);
     }
 
     if (!data.books || data.books.length === 0) {
