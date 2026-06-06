@@ -1012,11 +1012,25 @@ async function handleShelfScan(file: File): Promise<void> {
     let jobId: string | undefined;
     for (let attempt = 0; attempt < 3; attempt++) {
       if (attempt > 0) await new Promise((r) => setTimeout(r, 2_000));
-      const startRes = await fetch("/api/scan-shelf", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: imageData }),
-      });
+      const postCtrl = new AbortController();
+      const postTimeout = setTimeout(() => postCtrl.abort(), 15_000);
+      let startRes: Response;
+      try {
+        startRes = await fetch("/api/scan-shelf", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: imageData }),
+          signal: postCtrl.signal,
+        });
+      } catch (fetchErr) {
+        if (fetchErr instanceof Error && fetchErr.name === "AbortError") {
+          if (attempt < 2) continue;
+          throw new Error("Scanner unavailable. Please try again.");
+        }
+        throw fetchErr;
+      } finally {
+        clearTimeout(postTimeout);
+      }
       if (startRes.ok) {
         ({ jobId } = (await startRes.json()) as { jobId: string });
         break;

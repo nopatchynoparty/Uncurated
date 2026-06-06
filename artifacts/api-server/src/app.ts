@@ -65,6 +65,11 @@ if (process.env["NODE_ENV"] === "production") {
   app.use("/api/recommendations", recsRateLimit);
 }
 app.use("/api/recommendations", concurrencyLimiter);
+
+// Replit's autoscale liveness probe hits GET /api (the path prefix from artifact.toml).
+// Respond 200 so the server isn't killed by repeated healthcheck failures.
+app.get("/api", (_req, res) => { res.json({ ok: true }); });
+
 app.use("/api", router);
 
 const publicDir = path.join(__dirname, "../../taste-app/dist/public");
