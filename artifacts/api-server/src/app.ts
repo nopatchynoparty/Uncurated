@@ -31,6 +31,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app: Express = express();
 
+// Replit (and most cloud platforms) sit behind a reverse proxy that sets
+// X-Forwarded-For. Trust the first hop so express-rate-limit can identify
+// clients correctly.
+app.set("trust proxy", 1);
+
 app.use(cors());
 app.use(
   pinoHttp({
