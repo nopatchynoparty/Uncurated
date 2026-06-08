@@ -970,7 +970,11 @@ function showScanError(msg: string): void {
   showError(msg, inputSection, "scan-error-banner");
 }
 
-async function resizeImageForScan(file: File): Promise<string> {
+// Compresses the image to a Blob for multipart upload (binary is ~33% smaller
+// than base64 JSON, helping clear Replit's proxy body-size limit).
+// Scales to max 800px on the longest side, steps JPEG quality down from 0.7
+// until the binary blob is under 3500 bytes.
+async function compressImageForScan(file: File): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
@@ -993,20 +997,17 @@ async function resizeImageForScan(file: File): Promise<string> {
       canvas.height = height;
       canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
 
-      // Step quality down from 0.7 until the data URL fits under 30kb.
-      // Replit's proxy rejects request bodies over ~50kb; the base64 string
-      // is the dominant part of the JSON body, so we gate on its length.
-      let quality = 0.7;
-      let dataUrl = canvas.toDataURL("image/jpeg", quality);
-      while (dataUrl.length > 30 * 1024 && quality > 0.1) {
-        quality = Math.round((quality - 0.1) * 10) / 10;
-        dataUrl = canvas.toDataURL("image/jpeg", quality);
+      function tryQuality(quality: number): void {
+        canvas.toBlob((blob) => {
+          if (!blob) { reject(new Error("Failed to compress image.")); return; }
+          if (blob.size <= 3500 || quality <= 0.1) {
+            resolve(blob);
+          } else {
+            tryQuality(Math.round((quality - 0.1) * 10) / 10);
+          }
+        }, "image/jpeg", quality);
       }
-      if (dataUrl.length > 30 * 1024) {
-        reject(new Error("Image could not be compressed under 30 KB."));
-        return;
-      }
-      resolve(dataUrl);
+      tryQuality(0.7);
     };
     img.src = url;
   });
@@ -1021,46 +1022,62 @@ async function handleShelfScan(file: File): Promise<void> {
   }, 15_000);
 
   try {
-    const imageData = await resizeImageForScan(file);
+    const blob = await compressImageForScan(file);
+    const formData = new FormData();
+    formData.append("image", blob, "shelf.jpg");
 
-    // POST and wait for the synchronous result (server awaits the Anthropic call, ~90s max).
-    // Retry up to 3 times on a proxy-level 403 (Replit cold-start).
-    type ScanResponse = {
-      books?: Array<{ title: string; author: string; confidence: "high" | "medium" }>;
-      unreadable_count?: number;
-      error?: string;
-    };
-    let result: ScanResponse | undefined;
-
+    // POST multipart — binary upload avoids base64 overhead, helping clear
+    // Replit's proxy body-size limit. Retry up to 3× on HTML 403 (cold-start).
+    let jobId: string | undefined;
     for (let attempt = 0; attempt < 3; attempt++) {
       if (attempt > 0) await new Promise((r) => setTimeout(r, 2_000));
-      const res = await fetch("/api/scan-shelf", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: imageData }),
-      });
-      if (res.ok) {
-        result = (await res.json()) as ScanResponse;
+      const startRes = await fetch("/api/scan-shelf", { method: "POST", body: formData });
+      if (startRes.ok) {
+        ({ jobId } = (await startRes.json()) as { jobId: string });
         break;
       }
-      const ct = res.headers.get("content-type") ?? "";
-      if (res.status !== 403 || ct.includes("json")) {
-        const err = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(err.error || `Server error ${res.status}`);
+      const ct = startRes.headers.get("content-type") ?? "";
+      if (startRes.status !== 403 || ct.includes("json")) {
+        const err = (await startRes.json().catch(() => ({}))) as { error?: string };
+        throw new Error(err.error || `Server error ${startRes.status}`);
       }
       // HTML 403 = Replit proxy cold-start — discard body and retry
-      await res.body?.cancel();
+      await startRes.body?.cancel();
     }
-    if (!result) throw new Error("Couldn't reach the scanner. Please try again.");
+    if (!jobId) throw new Error("Couldn't reach the scanner. Please try again.");
 
-    if (result.error) throw new Error(result.error);
+    // Poll for the result every 2 seconds for up to 2 minutes.
+    const MAX_WAIT = 120_000;
+    const POLL_INTERVAL = 2_000;
+    const pollStart = Date.now();
 
-    if (!result.books || result.books.length === 0) {
-      showScanError("No book titles were readable in this photo. Try better lighting or a closer shot.");
+    while (true) {
+      const elapsed = Date.now() - pollStart;
+      if (elapsed > MAX_WAIT) throw new Error("Scan timed out. Please try again.");
+
+      await new Promise((r) => setTimeout(r, POLL_INTERVAL));
+
+      const statusRes = await fetch(`/api/scan-shelf/status/${jobId}`);
+      if (statusRes.status === 404) throw new Error("Scan job expired. Please try again.");
+
+      const data = (await statusRes.json()) as {
+        pending?: boolean;
+        books?: Array<{ title: string; author: string; confidence: "high" | "medium" }>;
+        unreadable_count?: number;
+        error?: string;
+      };
+
+      if (data.pending) continue;
+      if (data.error) throw new Error(data.error);
+
+      if (!data.books || data.books.length === 0) {
+        showScanError("No book titles were readable in this photo. Try better lighting or a closer shot.");
+        return;
+      }
+
+      showShelfReview(data.books, data.unreadable_count ?? 0);
       return;
     }
-
-    showShelfReview(result.books, result.unreadable_count ?? 0);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Something went wrong. Please try again.";
     showScanError(msg);
