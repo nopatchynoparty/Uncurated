@@ -1,6 +1,5 @@
 import { Router } from "express";
 import Anthropic from "@anthropic-ai/sdk";
-import { randomUUID } from "node:crypto";
 import { logger } from "../lib/logger.js";
 
 const router = Router();
@@ -21,24 +20,6 @@ interface ScanResult {
   unreadable_count: number;
 }
 
-type JobResult = ScanResult | { error: string };
-
-interface ScanJob {
-  result?: JobResult;
-  createdAt: number;
-}
-
-// In-memory job store. Works for single-instance deployments (Replit).
-const jobs = new Map<string, ScanJob>();
-
-// Expire jobs older than 5 minutes.
-setInterval(() => {
-  const cutoff = Date.now() - 5 * 60_000;
-  for (const [id, job] of jobs) {
-    if (job.createdAt < cutoff) jobs.delete(id);
-  }
-}, 60_000).unref();
-
 let _client: Anthropic | null = null;
 function getClient(): Anthropic | null {
   const apiKey = process.env["CLAUDE_API_KEY"];
@@ -47,14 +28,35 @@ function getClient(): Anthropic | null {
   return _client;
 }
 
-async function runScan(
-  jobId: string,
-  mediaType: "image/jpeg" | "image/png" | "image/webp",
-  base64Data: string,
-): Promise<void> {
+// POST /api/scan-shelf — awaits the Anthropic call directly and returns the result.
+// Synchronous design avoids the in-memory job store that breaks on autoscale deployments.
+router.post("/scan-shelf", async (req, res) => {
+  req.setTimeout(120_000);
+
+  const { image } = req.body as { image?: string };
+
+  if (!image || typeof image !== "string") {
+    res.status(400).json({ error: "No image provided." });
+    return;
+  }
+
+  const match = image.match(/^data:(image\/(?:jpeg|png|webp));base64,(.+)$/);
+  if (!match) {
+    res.status(400).json({ error: "Invalid image format. Please use a JPEG, PNG, or WebP photo." });
+    return;
+  }
+
+  const mediaType = match[1] as "image/jpeg" | "image/png" | "image/webp";
+  const base64Data = match[2];
+
+  if (base64Data.length > 10_000_000) {
+    res.status(400).json({ error: "Image too large. Please use a smaller photo (under ~6MB)." });
+    return;
+  }
+
   const client = getClient();
   if (!client) {
-    jobs.get(jobId)!.result = { error: "CLAUDE_API_KEY is not configured." };
+    res.status(500).json({ error: "CLAUDE_API_KEY is not configured." });
     return;
   }
 
@@ -92,12 +94,12 @@ async function runScan(
       parsed = JSON.parse(cleaned) as ScanResult;
     } catch {
       logger.error({ raw }, "Failed to parse shelf scan JSON");
-      jobs.get(jobId)!.result = { error: "Couldn't read the bookshelf. Please try a clearer photo." };
+      res.status(500).json({ error: "Couldn't read the bookshelf. Please try a clearer photo." });
       return;
     }
 
     if (!Array.isArray(parsed.books)) {
-      jobs.get(jobId)!.result = { error: "Unexpected scanner response. Please try again." };
+      res.status(500).json({ error: "Unexpected scanner response. Please try again." });
       return;
     }
 
@@ -109,65 +111,17 @@ async function runScan(
         confidence: b.confidence === "medium" ? "medium" : "high",
       }));
 
-    jobs.get(jobId)!.result = {
+    res.json({
       books,
       unreadable_count:
         typeof parsed.unreadable_count === "number"
           ? Math.max(0, Math.round(parsed.unreadable_count))
           : 0,
-    };
+    });
   } catch (err) {
     logger.error({ err }, "Shelf scan error");
-    jobs.get(jobId)!.result = { error: "Something went wrong scanning your shelf. Please try again." };
+    res.status(500).json({ error: "Something went wrong scanning your shelf. Please try again." });
   }
-}
-
-// POST /api/scan-shelf — validate the image, enqueue the scan, return a job ID immediately.
-// The long Anthropic call runs in the background; client polls /api/scan-shelf/status/:jobId.
-router.post("/scan-shelf", (req, res) => {
-  const { image } = req.body as { image?: string };
-
-  if (!image || typeof image !== "string") {
-    res.status(400).json({ error: "No image provided." });
-    return;
-  }
-
-  const match = image.match(/^data:(image\/(?:jpeg|png|webp));base64,(.+)$/);
-  if (!match) {
-    res.status(400).json({ error: "Invalid image format. Please use a JPEG, PNG, or WebP photo." });
-    return;
-  }
-
-  const mediaType = match[1] as "image/jpeg" | "image/png" | "image/webp";
-  const base64Data = match[2];
-
-  if (base64Data.length > 10_000_000) {
-    res.status(400).json({ error: "Image too large. Please use a smaller photo (under ~6MB)." });
-    return;
-  }
-
-  const jobId = randomUUID();
-  jobs.set(jobId, { createdAt: Date.now() });
-
-  void runScan(jobId, mediaType, base64Data);
-
-  res.json({ jobId });
-});
-
-// GET /api/scan-shelf/status/:jobId — returns { pending: true } while running, or the result.
-router.get("/scan-shelf/status/:jobId", (req, res) => {
-  const job = jobs.get(req.params["jobId"]!);
-  if (!job) {
-    res.status(404).json({ error: "Scan job not found or expired." });
-    return;
-  }
-  if (!job.result) {
-    res.json({ pending: true });
-    return;
-  }
-  const result = job.result;
-  jobs.delete(req.params["jobId"]!);
-  res.json(result);
 });
 
 export default router;

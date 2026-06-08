@@ -1016,77 +1016,56 @@ async function handleShelfScan(file: File): Promise<void> {
   scanBtn.disabled = true;
   const origContent = scanBtn.innerHTML;
   scanBtn.innerHTML = `<span class="import-btn-spinner" aria-hidden="true"></span>Scanning…`;
+  const stillTimer = setTimeout(() => {
+    scanBtn.innerHTML = `<span class="import-btn-spinner" aria-hidden="true"></span>Still scanning…`;
+  }, 15_000);
 
   try {
     const imageData = await resizeImageForScan(file);
 
-    // Submit the scan job — server responds immediately with a jobId.
-    // Retry up to 3 times on a proxy-level 403 (Replit cold-start returns an
-    // HTML forbidden page before the backend instance is ready).
-    let jobId: string | undefined;
+    // POST and wait for the synchronous result (server awaits the Anthropic call, ~90s max).
+    // Retry up to 3 times on a proxy-level 403 (Replit cold-start).
+    type ScanResponse = {
+      books?: Array<{ title: string; author: string; confidence: "high" | "medium" }>;
+      unreadable_count?: number;
+      error?: string;
+    };
+    let result: ScanResponse | undefined;
+
     for (let attempt = 0; attempt < 3; attempt++) {
       if (attempt > 0) await new Promise((r) => setTimeout(r, 2_000));
-      const startRes = await fetch("/api/scan-shelf", {
+      const res = await fetch("/api/scan-shelf", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ image: imageData }),
       });
-      if (startRes.ok) {
-        ({ jobId } = (await startRes.json()) as { jobId: string });
+      if (res.ok) {
+        result = (await res.json()) as ScanResponse;
         break;
       }
-      const ct = startRes.headers.get("content-type") ?? "";
-      if (startRes.status !== 403 || ct.includes("json")) {
-        const err = (await startRes.json().catch(() => ({}))) as { error?: string };
-        throw new Error(err.error || `Server error ${startRes.status}`);
+      const ct = res.headers.get("content-type") ?? "";
+      if (res.status !== 403 || ct.includes("json")) {
+        const err = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(err.error || `Server error ${res.status}`);
       }
       // HTML 403 = Replit proxy cold-start — discard body and retry
-      await startRes.body?.cancel();
+      await res.body?.cancel();
     }
-    if (!jobId) throw new Error("Couldn't reach the scanner. Please try again.");
+    if (!result) throw new Error("Couldn't reach the scanner. Please try again.");
 
-    // Poll for the result every 2 seconds for up to 2 minutes.
-    const MAX_WAIT = 120_000;
-    const POLL_INTERVAL = 2_000;
-    const pollStart = Date.now();
+    if (result.error) throw new Error(result.error);
 
-    while (true) {
-      const elapsed = Date.now() - pollStart;
-      if (elapsed > MAX_WAIT) {
-        throw new Error("Scan timed out. Please try again.");
-      }
-      if (elapsed > 15_000) {
-        scanBtn.innerHTML = `<span class="import-btn-spinner" aria-hidden="true"></span>Still scanning…`;
-      }
-
-      await new Promise((r) => setTimeout(r, POLL_INTERVAL));
-
-      const statusRes = await fetch(`/api/scan-shelf/status/${jobId}`);
-      if (statusRes.status === 404) throw new Error("Scan job expired. Please try again.");
-
-      const data = (await statusRes.json()) as {
-        pending?: boolean;
-        books?: Array<{ title: string; author: string; confidence: "high" | "medium" }>;
-        unreadable_count?: number;
-        error?: string;
-      };
-
-      if (data.pending) continue;
-
-      if (data.error) throw new Error(data.error);
-
-      if (!data.books || data.books.length === 0) {
-        showScanError("No book titles were readable in this photo. Try better lighting or a closer shot.");
-        return;
-      }
-
-      showShelfReview(data.books, data.unreadable_count ?? 0);
+    if (!result.books || result.books.length === 0) {
+      showScanError("No book titles were readable in this photo. Try better lighting or a closer shot.");
       return;
     }
+
+    showShelfReview(result.books, result.unreadable_count ?? 0);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Something went wrong. Please try again.";
     showScanError(msg);
   } finally {
+    clearTimeout(stillTimer);
     scanBtn.disabled = false;
     scanBtn.innerHTML = origContent;
   }
