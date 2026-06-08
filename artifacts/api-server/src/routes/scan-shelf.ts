@@ -8,7 +8,7 @@ import { logger } from "../lib/logger.js";
 
 const router = Router();
 
-const MODEL = "claude-haiku-4-5-20251001";
+const MODEL = "claude-sonnet-4-6";
 const JOB_TTL_MS = 5 * 60_000;
 
 const SCAN_SYSTEM =
