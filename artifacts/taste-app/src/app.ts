@@ -1000,7 +1000,7 @@ async function compressImageForScan(file: File): Promise<Blob> {
       function tryQuality(quality: number): void {
         canvas.toBlob((blob) => {
           if (!blob) { reject(new Error("Failed to compress image.")); return; }
-          if (blob.size <= 3500 || quality <= 0.1) {
+          if (blob.size <= 100 * 1024 || quality <= 0.1) {
             resolve(blob);
           } else {
             tryQuality(Math.round((quality - 0.1) * 10) / 10);
