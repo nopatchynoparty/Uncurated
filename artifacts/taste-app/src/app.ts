@@ -977,7 +977,7 @@ async function resizeImageForScan(file: File): Promise<string> {
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Failed to load image")); };
     img.onload = () => {
       URL.revokeObjectURL(url);
-      const MAX = 1200;
+      const MAX = 800;
       let { width, height } = img;
       if (width > MAX || height > MAX) {
         if (width > height) {
@@ -993,17 +993,17 @@ async function resizeImageForScan(file: File): Promise<string> {
       canvas.height = height;
       canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
 
-      // Step quality down from 0.85 until the data URL fits under 200kb.
+      // Step quality down from 0.7 until the data URL fits under 30kb.
       // Replit's proxy rejects request bodies over ~50kb; the base64 string
       // is the dominant part of the JSON body, so we gate on its length.
-      let quality = 0.85;
+      let quality = 0.7;
       let dataUrl = canvas.toDataURL("image/jpeg", quality);
-      while (dataUrl.length > 200 * 1024 && quality > 0.1) {
+      while (dataUrl.length > 30 * 1024 && quality > 0.1) {
         quality = Math.round((quality - 0.1) * 10) / 10;
         dataUrl = canvas.toDataURL("image/jpeg", quality);
       }
-      if (dataUrl.length > 200 * 1024) {
-        reject(new Error("Image could not be compressed under 200 KB."));
+      if (dataUrl.length > 30 * 1024) {
+        reject(new Error("Image could not be compressed under 30 KB."));
         return;
       }
       resolve(dataUrl);
@@ -1026,25 +1026,11 @@ async function handleShelfScan(file: File): Promise<void> {
     let jobId: string | undefined;
     for (let attempt = 0; attempt < 3; attempt++) {
       if (attempt > 0) await new Promise((r) => setTimeout(r, 2_000));
-      const postCtrl = new AbortController();
-      const postTimeout = setTimeout(() => postCtrl.abort(), 15_000);
-      let startRes: Response;
-      try {
-        startRes = await fetch("/api/scan-shelf", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ image: imageData }),
-          signal: postCtrl.signal,
-        });
-      } catch (fetchErr) {
-        if (fetchErr instanceof Error && fetchErr.name === "AbortError") {
-          if (attempt < 2) continue;
-          throw new Error("Scanner unavailable. Please try again.");
-        }
-        throw fetchErr;
-      } finally {
-        clearTimeout(postTimeout);
-      }
+      const startRes = await fetch("/api/scan-shelf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: imageData }),
+      });
       if (startRes.ok) {
         ({ jobId } = (await startRes.json()) as { jobId: string });
         break;
