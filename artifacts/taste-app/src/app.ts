@@ -977,7 +977,7 @@ async function resizeImageForScan(file: File): Promise<string> {
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Failed to load image")); };
     img.onload = () => {
       URL.revokeObjectURL(url);
-      const MAX = 960;
+      const MAX = 1200;
       let { width, height } = img;
       if (width > MAX || height > MAX) {
         if (width > height) {
@@ -992,7 +992,21 @@ async function resizeImageForScan(file: File): Promise<string> {
       canvas.width = width;
       canvas.height = height;
       canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL("image/jpeg", 0.72));
+
+      // Step quality down from 0.85 until the data URL fits under 200kb.
+      // Replit's proxy rejects request bodies over ~50kb; the base64 string
+      // is the dominant part of the JSON body, so we gate on its length.
+      let quality = 0.85;
+      let dataUrl = canvas.toDataURL("image/jpeg", quality);
+      while (dataUrl.length > 200 * 1024 && quality > 0.1) {
+        quality = Math.round((quality - 0.1) * 10) / 10;
+        dataUrl = canvas.toDataURL("image/jpeg", quality);
+      }
+      if (dataUrl.length > 200 * 1024) {
+        reject(new Error("Image could not be compressed under 200 KB."));
+        return;
+      }
+      resolve(dataUrl);
     };
     img.src = url;
   });
