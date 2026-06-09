@@ -338,7 +338,7 @@ function setRating(id: string, rating: string): void {
     });
 }
 
-function renderItem(item: Item): void {
+function buildItemEl(item: Item): DocumentFragment {
   const clone = itemTemplate.content.cloneNode(true) as DocumentFragment;
   const li = clone.querySelector(".item-row") as HTMLElement;
   li.dataset.itemId = item.id;
@@ -357,7 +357,11 @@ function renderItem(item: Item): void {
       b.classList.toggle("active", b.dataset.rating === item.rating);
     });
   }
-  itemsList.appendChild(clone);
+  return clone;
+}
+
+function renderItem(item: Item): void {
+  itemsList.appendChild(buildItemEl(item));
   itemsSection.style.display = "block";
 }
 
@@ -459,13 +463,12 @@ function bindCardButtons(cardEl: HTMLElement, rec: Recommendation): void {
   }
 }
 
-function renderRecCard(rec: Recommendation): HTMLElement {
+function renderRecCard(rec: Recommendation): void {
   const clone = recTemplate.content.cloneNode(true) as DocumentFragment;
   const li = clone.querySelector(".rec-card") as HTMLElement;
   fillRecCard(li, rec);
   bindCardButtons(li, rec);
   recsList.appendChild(clone);
-  return li;
 }
 
 function renderResults(data: ApiResponse): void {
@@ -555,11 +558,20 @@ async function replaceRec(
   }
 
   try {
-    const res = await fetch("/api/recommendations/replace", {
+    const reqBody = JSON.stringify(replaceBody);
+    let res = await fetch("/api/recommendations/replace", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(replaceBody),
+      body: reqBody,
     });
+    if (!res.ok && res.status >= 500) {
+      await new Promise<void>((r) => setTimeout(r, 1500));
+      res = await fetch("/api/recommendations/replace", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: reqBody,
+      });
+    }
 
     if (!res.ok) {
       const err = (await res.json().catch(() => ({}))) as { error?: string };
@@ -646,12 +658,23 @@ async function fetchRecommendations(): Promise<void> {
     if (gamesDeepCuts) recBody.deepCuts = true;
   }
 
+  const fetchStart = Date.now();
   try {
-    const res = await fetch("/api/recommendations", {
+    const reqBody = JSON.stringify(recBody);
+    let res = await fetch("/api/recommendations", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(recBody),
+      body: reqBody,
     });
+    // Retry once on 5xx (cold-start, transient overload)
+    if (!res.ok && res.status >= 500) {
+      await new Promise<void>((r) => setTimeout(r, 1500));
+      res = await fetch("/api/recommendations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: reqBody,
+      });
+    }
 
     if (!res.ok) {
       const err = (await res.json().catch(() => ({}))) as { error?: string };
@@ -659,6 +682,9 @@ async function fetchRecommendations(): Promise<void> {
     }
 
     const data = (await res.json()) as ApiResponse;
+    // Ensure the loading message is visible for at least 800ms so it doesn't flash
+    const elapsed = Date.now() - fetchStart;
+    if (elapsed < 800) await new Promise<void>((r) => setTimeout(r, 800 - elapsed));
     renderResults(data);
   } catch (err: unknown) {
     const msg =
@@ -805,9 +831,11 @@ function renderIndieStores(elements: OsmElement[], userLat: number, userLng: num
 function closeIndieStore(): void {
   indieStoreOverlay.style.display = "none";
   document.body.style.overflow = "";
+  indieBookstoreBtn.disabled = false;
 }
 
 function openIndieFinder(): void {
+  indieBookstoreBtn.disabled = true;
   indieStoreOverlay.style.display = "flex";
   document.body.style.overflow = "hidden";
   indieStoreContent.innerHTML = "";
@@ -929,23 +957,19 @@ function parseGoodreadsCSV(text: string): void {
   const CAP = 500;
   const toAdd = [...rated, ...unrated].slice(0, CAP);
 
-  let imported = 0;
-  for (const entry of toAdd) {
-    const item: Item = { id: generateId(), name: entry.title, rating: entry.rating };
-    items.push(item);
-    renderItem(item);
-    if (entry.rating) {
-      const el = document.querySelector(`[data-item-id="${item.id}"]`);
-      el?.querySelectorAll(".rating-btn").forEach((btn) => {
-        const b = btn as HTMLElement;
-        b.classList.toggle("active", b.dataset.rating === entry.rating);
-      });
+  if (toAdd.length > 0) {
+    const frag = document.createDocumentFragment();
+    for (const entry of toAdd) {
+      const item: Item = { id: generateId(), name: entry.title, rating: entry.rating };
+      items.push(item);
+      frag.appendChild(buildItemEl(item));
     }
-    imported++;
+    itemsList.appendChild(frag);
+    itemsSection.style.display = "block";
   }
 
   updateCta();
-  if (imported === 0) {
+  if (toAdd.length === 0) {
     showError("No 'read' books found in this CSV. Make sure it's a Goodreads library export.");
   }
 }

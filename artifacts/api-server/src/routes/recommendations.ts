@@ -54,6 +54,7 @@ interface RecommendationResponse {
 }
 
 const MODEL = "claude-sonnet-4-6";
+const REPLACE_MODEL = "claude-haiku-4-5-20251001";
 const CLAUDE_TIMEOUT_MS = 30_000;
 const AFFILIATE_TAG = "uncuratedapp-20";
 
@@ -733,7 +734,7 @@ router.post("/recommendations/replace", async (req, res) => {
   try {
     const message = await client.messages.create(
       {
-        model: MODEL,
+        model: REPLACE_MODEL,
         max_tokens: 512,
         system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
         messages: [{ role: "user", content: userMessage }],
