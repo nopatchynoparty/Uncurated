@@ -15,10 +15,10 @@ interface Recommendation {
   amazon_search: string;
   format?: string;
   runtime?: string;
-  where_to_watch?: string;
   year?: string;
   platform?: string;
   play_time?: string;
+  justwatch_search?: string;
 }
 
 interface ApiResponse {
@@ -139,9 +139,9 @@ const CATEGORY_CONFIG: Record<Category, {
     label: "What have you watched?",
     placeholder: "e.g. Breaking Bad, The Godfather, Succession…",
     dismissBtn: "I've watched this",
-    linkText: null,
+    linkText: "Find on JustWatch →",
     sharePrefix: "My viewer profile:",
-    shareByWord: "by",
+    shareByWord: "dir.",
     minError: "Add at least 3 shows or films to get a good recommendation.",
   },
   games: {
@@ -165,7 +165,6 @@ const DISMISS_REASONS: Partial<Record<Category, string[]>> = {
   watch: [
     "Already watched it",
     "Too long a commitment",
-    "Not available on my platforms",
     "Not my kind of tone",
     "Not interested in the topic",
   ],
@@ -391,10 +390,12 @@ function fillRecCard(li: HTMLElement, rec: Recommendation): void {
   const config = CATEGORY_CONFIG[activeCategory];
   if (config.linkText) {
     link.textContent = config.linkText;
-    link.href = rec.amazon_search ||
-      (activeCategory === "podcasts"
-        ? `https://open.spotify.com/search/${encodeURIComponent(rec.title)}`
-        : `https://www.amazon.co.uk/s?k=${encodeURIComponent(rec.title + " " + (rec.author || ""))}&tag=uncuratedapp-20`);
+    link.href = activeCategory === "watch"
+      ? (rec.justwatch_search || `https://www.justwatch.com/uk/search?q=${encodeURIComponent(rec.title)}`)
+      : rec.amazon_search ||
+        (activeCategory === "podcasts"
+          ? `https://open.spotify.com/search/${encodeURIComponent(rec.title)}`
+          : `https://www.amazon.co.uk/s?k=${encodeURIComponent(rec.title + " " + (rec.author || ""))}&tag=uncuratedapp-20`);
     link.style.display = "";
   } else {
     link.style.display = "none";
@@ -405,7 +406,6 @@ function fillRecCard(li: HTMLElement, rec: Recommendation): void {
     watchFields.style.display = "flex";
     (li.querySelector(".rec-format-badge") as HTMLElement).textContent = rec.format || "";
     (li.querySelector(".rec-runtime") as HTMLElement).textContent = rec.runtime || "";
-    (li.querySelector(".rec-where-to-watch") as HTMLElement).textContent = rec.where_to_watch || "";
     (li.querySelector(".rec-year") as HTMLElement).textContent = rec.year || "";
   } else {
     watchFields.style.display = "none";
@@ -713,7 +713,7 @@ function buildShareText(): string {
   if (currentArchetype) {
     return (
       `I'm ${currentArchetype} — ${profileText}\n\n` +
-      `Top match: ${top.title} by ${top.author} (${score} match) — ${top.vibe}\n\n` +
+      `Top match: ${top.title} ${config.shareByWord} ${top.author} (${score} match) — ${top.vibe}\n\n` +
       `Find yours at uncurated.app`
     );
   }
@@ -1383,9 +1383,21 @@ function buildShareCardEl(profileText: string, recs: Recommendation[], archetype
     matchCard.appendChild(titleRow);
 
     const authorEl = document.createElement("p");
-    authorEl.style.cssText = `margin:0 0 14px;font-size:14px;color:${textMuted};`;
+    authorEl.style.cssText = `margin:0 0 10px;font-size:14px;color:${textMuted};`;
     authorEl.textContent = top.author;
     matchCard.appendChild(authorEl);
+
+    if (activeCategory === "watch" && (top.format || top.runtime || top.year)) {
+      const metaEl = document.createElement("p");
+      metaEl.style.cssText = "margin:0 0 12px;display:flex;gap:6px;flex-wrap:wrap;";
+      [top.format, top.runtime, top.year].filter(Boolean).forEach((val) => {
+        const badge = document.createElement("span");
+        badge.style.cssText = `font-size:10px;padding:2px 8px;border-radius:99px;border:1px solid ${border};color:${textMuted};background:${surface};`;
+        badge.textContent = val!;
+        metaEl.appendChild(badge);
+      });
+      matchCard.appendChild(metaEl);
+    }
 
     if (top.vibe) {
       const vibeEl = document.createElement("span");

@@ -12,10 +12,10 @@ interface Recommendation {
   amazon_search: string;
   format?: string;
   runtime?: string;
-  where_to_watch?: string;
   year?: string;
   platform?: string;
   play_time?: string;
+  justwatch_search?: string;
 }
 
 interface EmailRequest {
@@ -118,6 +118,7 @@ function isTrustedUrl(url: string): boolean {
       "www.amazon.co.uk", "amazon.co.uk",
       "www.amazon.com", "amazon.com",
       "open.spotify.com",
+      "www.justwatch.com",
     ];
     return parsed.protocol === "https:" && trusted.includes(parsed.hostname);
   } catch {
@@ -127,7 +128,8 @@ function isTrustedUrl(url: string): boolean {
 
 function buildRecCard(rec: Recommendation, linkText: string | null, c: EmailColors, category?: string): string {
   const score = Math.round(typeof rec.match_score === "number" ? rec.match_score : Number(rec.match_score));
-  const safeLink = isTrustedUrl(rec.amazon_search) ? rec.amazon_search : null;
+  const rawLink = category === "watch" ? (rec.justwatch_search ?? "") : rec.amazon_search;
+  const safeLink = isTrustedUrl(rawLink) ? rawLink : null;
 
   const buttonHtml = linkText && safeLink ? `
               <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 16px;">
@@ -161,12 +163,11 @@ function buildRecCard(rec: Recommendation, linkText: string | null, c: EmailColo
                         </td>
                       </tr>
                     </table>
-                    <!-- Watch metadata (format / runtime / platform / year) -->
-                    ${category === "watch" && (rec.format || rec.runtime || rec.where_to_watch || rec.year) ? `
+                    <!-- Watch metadata (format / runtime / year) -->
+                    ${category === "watch" && (rec.format || rec.runtime || rec.year) ? `
                     <p style="margin: 12px 0 0 0; font-family: 'DM Sans', Arial, Helvetica, sans-serif; line-height: 2;">
                       ${rec.format ? `<span style="display: inline-block; background-color: ${c.surface2}; color: ${c.textFaint}; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 8px; border-radius: 99px; border: 1px solid ${c.border}; margin-right: 4px;">${escapeHtml(rec.format)}</span>` : ""}
                       ${rec.runtime ? `<span style="display: inline-block; background-color: ${c.surface2}; color: ${c.textMuted}; font-size: 11px; padding: 2px 8px; border-radius: 99px; border: 1px solid ${c.border}; margin-right: 4px;">${escapeHtml(rec.runtime)}</span>` : ""}
-                      ${rec.where_to_watch ? `<span style="display: inline-block; background-color: ${c.surface2}; color: ${c.textMuted}; font-size: 11px; padding: 2px 8px; border-radius: 99px; border: 1px solid ${c.border}; margin-right: 4px;">${escapeHtml(rec.where_to_watch)}</span>` : ""}
                       ${rec.year ? `<span style="display: inline-block; background-color: ${c.surface2}; color: ${c.textMuted}; font-size: 11px; padding: 2px 8px; border-radius: 99px; border: 1px solid ${c.border};">${escapeHtml(rec.year)}</span>` : ""}
                     </p>` : ""}
                     <!-- Games metadata (platform / play_time / year) -->
@@ -196,6 +197,7 @@ function buildEmailHtml(tasteProfile: string, recs: Recommendation[], category: 
   const linkText =
     category === "books" || category === "games" ? "Find on Amazon"
     : category === "podcasts" ? "Find on Spotify"
+    : category === "watch" ? "Find on JustWatch"
     : null;
 
   const recCardsHtml = recs.map((rec) => buildRecCard(rec, linkText, c, category)).join("\n");

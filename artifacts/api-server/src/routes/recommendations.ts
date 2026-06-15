@@ -38,10 +38,10 @@ interface Recommendation {
   amazon_search: string;
   format?: string;
   runtime?: string;
-  where_to_watch?: string;
   year?: string;
   platform?: string;
   play_time?: string;
+  justwatch_search?: string;
 }
 
 interface RecommendationResponse {
@@ -181,8 +181,8 @@ Respond ONLY with valid JSON. Your response must begin with { and end with }. Do
       "vibe": "A short evocative phrase (e.g. slow-burn psychological thriller or warm ensemble comedy)",
       "format": "Series",
       "runtime": "3 seasons ~30hrs",
-      "where_to_watch": "Netflix",
-      "year": "2019"
+      "year": "2019",
+      "justwatch_search": "https://www.justwatch.com/uk/search?q=Show+or+Film+Title"
     }
   ]
 }
@@ -194,8 +194,8 @@ Rules:
 - vibe must be under 50 characters
 - format must be exactly "Series" or "Film"
 - runtime should be concise: for series use "X seasons ~Xhr", for films use "Xhr film"
-- where_to_watch should list the primary streaming platform(s). If on multiple, list up to 2 separated by " / ". Use standard platform names: Netflix, Prime Video, Apple TV+, Disney+, Max, Hulu, Peacock, Paramount+, BBC iPlayer, Channel 4. Abbreviate only if unavoidable.
 - year should be the release year as a 4-digit string
+- justwatch_search must be a valid JustWatch search URL in the format https://www.justwatch.com/uk/search?q=Title with the title URL-encoded
 - short_taste_profile must be exactly one complete sentence, maximum 120 characters, ending with a full stop — never use '...' or ellipsis, never truncated mid-sentence
 - Avoid recommending titles so widely seen and discussed that a regular viewer would almost certainly have already watched them. Prioritise underseen, underrated, or less widely talked-about titles over cultural landmarks — unless the user's watch history suggests they are relatively new to the genre.
 - archetype must be exactly one of these 12 values: "The Prestige Drama Addict", "The Binge Monster", "The Dark & Twisted", "The Feel-Good Faithful", "The True Crime Obsessive", "The Sci-Fi Escapist", "The Comfort Rewatcher", "The Doc Devotee", "The Sharp Comedy Fan", "The Slow Burn Devotee", "The Foreign Language Explorer", "The Underdog Champion"
@@ -332,8 +332,8 @@ Respond ONLY with valid JSON. Your response must begin with { and end with }. Do
   "vibe": "A short evocative phrase",
   "format": "Series",
   "runtime": "3 seasons ~30hrs",
-  "where_to_watch": "Netflix",
-  "year": "2019"
+  "year": "2019",
+  "justwatch_search": "https://www.justwatch.com/uk/search?q=Show+or+Film+Title"
 }
 
 Rules:
@@ -341,8 +341,9 @@ Rules:
 - The title must not match any forbidden title in any form: ignoring leading "The", "A", or "An"; ignoring any series prefix before a colon or em-dash (e.g. "Series: Title" matches "Title"); ignoring subtitles after a colon or em-dash (e.g. "Title: Subtitle" matches "Title"); ignoring punctuation differences. When in doubt, pick something else.
 - format must be exactly "Series" or "Film"
 - runtime should be concise: for series use "X seasons ~Xhr", for films use "Xhr film"
-- where_to_watch should list the primary streaming platform(s). If on multiple, list up to 2 separated by " / "
 - year should be the release year as a 4-digit string
+- justwatch_search must be a valid JustWatch search URL in the format https://www.justwatch.com/uk/search?q=Title with the title URL-encoded
+- Avoid recommending titles so widely seen and discussed that a regular viewer would almost certainly have already watched them. Prioritise underseen, underrated, or less widely talked-about titles over cultural landmarks — unless the dismiss reason or context suggests otherwise.
 - Your entire response must be valid JSON starting with { and ending with } — nothing else`;
 
 // ── URL helpers ───────────────────────────────────────────────────────────────
@@ -377,6 +378,22 @@ function sanitizeAmazonUrl(url: string, title: string, author: string): string {
     ? url
     : `https://www.amazon.co.uk/s?k=${encodeURIComponent(`${title} ${author}`)}`;
   return addAffiliateTag(base);
+}
+
+function sanitizeJustWatchUrl(url: string, title: string): string {
+  try {
+    const parsed = new URL(url);
+    if (
+      parsed.protocol === "https:" &&
+      parsed.hostname === "www.justwatch.com" &&
+      parsed.pathname === "/uk/search"
+    ) {
+      return url;
+    }
+  } catch {
+    // fall through to default
+  }
+  return `https://www.justwatch.com/uk/search?q=${encodeURIComponent(title)}`;
 }
 
 function sanitizePodcastUrl(url: string, title: string): string {
@@ -568,7 +585,7 @@ function buildWatchReplaceUserMessage(
     : "";
 
   const dismissContext = dismissReason
-    ? `\nThe user passed on the previous recommendation because: "${dismissReason}". Use this to find a better fit — if they said "Already watched it", find something with similar appeal they haven't seen; if "Too long a commitment", prefer shorter runtime (a film or a short series); if "Not available on my platforms", aim for widely available platforms like Netflix or Prime Video; if "Not my kind of tone", avoid similar atmosphere or genre feel; if "Not interested in the topic", steer clear of that subject area entirely.\n`
+    ? `\nThe user passed on the previous recommendation because: "${dismissReason}". Use this to find a better fit — if they said "Already watched it", find something with similar appeal they haven't seen; if "Too long a commitment", prefer shorter runtime (a film or a short series); if "Not my kind of tone", avoid similar atmosphere or genre feel; if "Not interested in the topic", steer clear of that subject area entirely.\n`
     : "";
 
   return `User preferences:\n- Format: ${formatNote}\n- Mood: ${moodNote}${deepCutsNote}
@@ -673,6 +690,7 @@ router.post("/recommendations", async (req, res) => {
           : category === "games"
             ? sanitizeAmazonUrl(rec.amazon_search ?? "", rec.title, rec.platform?.split(" / ")[0] || "")
             : sanitizeAmazonUrl(rec.amazon_search ?? "", rec.title, rec.author),
+      ...(category === "watch" && { justwatch_search: sanitizeJustWatchUrl(rec.justwatch_search ?? "", rec.title) }),
     }));
 
     res.json(parsed);
@@ -772,6 +790,10 @@ router.post("/recommendations/replace", async (req, res) => {
         : category === "games"
           ? sanitizeAmazonUrl(rec.amazon_search ?? "", rec.title, rec.platform?.split(" / ")[0] || "")
           : sanitizeAmazonUrl(rec.amazon_search ?? "", rec.title, rec.author);
+
+    if (category === "watch") {
+      rec.justwatch_search = sanitizeJustWatchUrl(rec.justwatch_search ?? "", rec.title);
+    }
 
     res.json({ recommendation: rec });
   } catch (err: unknown) {
