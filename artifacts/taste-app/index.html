@@ -3,15 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
-    <title>Uncurated — honest recommendations</title>
+    <title>Uncurated — honest book recommendations</title>
     <meta name="description" content="An honest, agenda-free recommendation engine. No algorithms, no sponsors, just recommendations based on your actual taste." />
     <meta name="robots" content="index, follow" />
-    <meta property="og:title" content="Uncurated — honest recommendations" />
+    <meta property="og:title" content="Uncurated — honest book recommendations" />
     <meta property="og:description" content="An honest, agenda-free recommendation engine. No algorithms, no sponsors." />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="https://uncurated.app/opengraph.png" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Uncurated" />
+    <meta name="twitter:title" content="Uncurated — honest book recommendations" />
     <meta name="twitter:description" content="Honest, agenda-free recommendations powered by AI." />
     <meta name="twitter:image" content="https://uncurated.app/opengraph.png" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -29,11 +29,57 @@
         <div class="logo">
           <span class="logo-text"><span class="logo-un">Un</span>curated</span>
         </div>
-        <p class="tagline">No algorithms. No sponsors. Just honest recommendations.</p>
+        <a href="https://tally.so/r/2E1DP9" class="header-feedback-link" target="_blank" rel="noopener noreferrer">Give feedback</a>
       </header>
 
+      <section class="hero">
+        <h1 class="hero-headline">Find books you'll actually love.</h1>
+        <p class="hero-sub">Tired of algorithms surfacing what's popular rather than what suits you? Tell us what you've read — we'll do the rest.</p>
+        <div class="hero-proof">
+          <span class="hero-proof-item">5 recommendations per session</span>
+          <span class="hero-proof-item">Zero sponsored picks</span>
+          <span class="hero-proof-item">Free for any reader</span>
+        </div>
+        <p class="hero-extras">Plus your reader archetype, a shareable card, and your results to your inbox.</p>
+      </section>
+
       <main class="main">
-        <section class="categories">
+        <section class="example-section" id="example-section" aria-label="Example output preview">
+          <div class="example-label-row">
+            <span class="example-label-tag">Example — not your results</span>
+            <span class="example-input-summary">Harry Potter (loved) · The Da Vinci Code (loved) · Gone Girl (liked) · Twilight (meh)</span>
+          </div>
+          <p class="example-intro">Here's what your personalised profile and recommendations look like. Add your books below to get yours.</p>
+
+          <div class="taste-profile-card">
+            <div class="taste-profile-header">
+              <h2 class="taste-profile-title">YOUR UNCURATED PROFILE</h2>
+            </div>
+            <p class="taste-profile-text">This reader gravitates toward fast-paced, plot-driven narratives with strong hooks and accessible writing. They love stories that blend mystery, intrigue, and page-turning momentum, but aren't drawn to romance-heavy paranormal fiction, suggesting they prefer sharper, more grounded thriller elements over atmospheric fantasy.</p>
+          </div>
+
+          <h2 class="recs-title">Recommended for you</h2>
+          <ol class="recs-list example-recs-list">
+            <li class="rec-card">
+              <div class="rec-header">
+                <div class="rec-meta">
+                  <span class="rec-title">The Girl on the Train</span>
+                  <span class="rec-author">Paula Hawkins</span>
+                </div>
+                <div class="rec-score-wrap">
+                  <span class="rec-score">94%</span>
+                  <span class="rec-score-label">match</span>
+                </div>
+              </div>
+              <p class="rec-why">A taut psychological thriller built on unreliable narrators and escalating dread — if Gone Girl's twisty tension and The Da Vinci Code's compulsive pacing are your speed, this delivers both in one sitting.</p>
+              <div class="rec-footer">
+                <span class="rec-vibe">Psychological thriller</span>
+              </div>
+            </li>
+          </ol>
+        </section>
+
+        <section class="categories" style="display:none">
           <button class="category-btn active" data-category="books">Read</button>
           <button class="category-btn coming-soon" data-category="watch" disabled>Watch <span class="badge">soon</span></button>
           <button class="category-btn coming-soon" data-category="podcasts" disabled>Listen <span class="badge">soon</span></button>
@@ -67,7 +113,7 @@
             />
             <button class="add-btn" id="add-btn" aria-label="Add item">+</button>
           </div>
-          <p class="input-hint">Press Enter or click + to add. Add at least 3 items for better results.</p>
+          <p class="input-hint">Press Enter or click + to add. Add at least 3 items for better results. Free for any reader, anywhere.</p>
         </section>
 
         <section class="watch-options" id="watch-options" style="display:none">
@@ -111,73 +157,6 @@
           </label>
         </section>
 
-        <section class="example-section" id="example-section" aria-label="Example output preview">
-          <div class="example-label-row">
-            <span class="example-label-tag">Example — not your results</span>
-            <span class="example-input-summary">Harry Potter (loved) · The Da Vinci Code (loved) · Gone Girl (liked) · Twilight (meh)</span>
-          </div>
-          <p class="example-intro">Add your books above to get your own personalised profile and recommendations.</p>
-
-          <div class="taste-profile-card">
-            <div class="taste-profile-header">
-              <h2 class="taste-profile-title">YOUR UNCURATED PROFILE</h2>
-            </div>
-            <p class="taste-profile-text">This reader gravitates toward fast-paced, plot-driven narratives with strong hooks and accessible writing. They love stories that blend mystery, intrigue, and page-turning momentum, but aren't drawn to romance-heavy paranormal fiction, suggesting they prefer sharper, more grounded thriller elements over atmospheric fantasy.</p>
-          </div>
-
-          <h2 class="recs-title">Recommended for you</h2>
-          <ol class="recs-list example-recs-list">
-            <li class="rec-card">
-              <div class="rec-header">
-                <div class="rec-meta">
-                  <span class="rec-title">The Girl on the Train</span>
-                  <span class="rec-author">Paula Hawkins</span>
-                </div>
-                <div class="rec-score-wrap">
-                  <span class="rec-score">94%</span>
-                  <span class="rec-score-label">match</span>
-                </div>
-              </div>
-              <p class="rec-why">A taut psychological thriller built on unreliable narrators and escalating dread — if Gone Girl's twisty tension and The Da Vinci Code's compulsive pacing are your speed, this delivers both in one sitting.</p>
-              <div class="rec-footer">
-                <span class="rec-vibe">Psychological thriller</span>
-              </div>
-            </li>
-            <li class="rec-card">
-              <div class="rec-header">
-                <div class="rec-meta">
-                  <span class="rec-title">The Silent Patient</span>
-                  <span class="rec-author">Alex Michaelides</span>
-                </div>
-                <div class="rec-score-wrap">
-                  <span class="rec-score">91%</span>
-                  <span class="rec-score-label">match</span>
-                </div>
-              </div>
-              <p class="rec-why">A locked-room mystery with a jaw-dropping final act. It shares Gone Girl's dark domestic suspense and Harry Potter's satisfying payoff structure — written for readers who like to feel clever, then feel fooled.</p>
-              <div class="rec-footer">
-                <span class="rec-vibe">Dark mystery · twist ending</span>
-              </div>
-            </li>
-            <li class="rec-card">
-              <div class="rec-header">
-                <div class="rec-meta">
-                  <span class="rec-title">The Hunger Games</span>
-                  <span class="rec-author">Suzanne Collins</span>
-                </div>
-                <div class="rec-score-wrap">
-                  <span class="rec-score">88%</span>
-                  <span class="rec-score-label">match</span>
-                </div>
-              </div>
-              <p class="rec-why">Propulsive, plot-driven, and genuinely hard to put down. If you loved Harry Potter's momentum and Gone Girl's sharp edge, Collins delivers relentless urgency — minus the paranormal romance.</p>
-              <div class="rec-footer">
-                <span class="rec-vibe">Dystopian action · series</span>
-              </div>
-            </li>
-          </ol>
-        </section>
-
         <section class="items-section" id="items-section" style="display:none">
           <ul class="items-list" id="items-list"></ul>
         </section>
@@ -188,6 +167,7 @@
               <span class="find-btn-text">Find my recommendations</span>
               <span class="find-btn-loader" id="find-loader" aria-hidden="true"></span>
             </button>
+            <p class="find-expectation">Add your books → get a personalised taste profile + 5 recommendations in seconds.</p>
             <p class="find-status" id="find-status"></p>
             <button class="clear-btn" id="clear-btn" type="button">Clear list</button>
           </div>
@@ -238,7 +218,7 @@
       </main>
 
       <footer class="footer">
-        <p>Uncurated · Powered by Claude · No affiliate data collected · <a href="https://tally.so/r/2E1DP9" target="_blank" rel="noopener noreferrer" class="footer-link">Give feedback</a></p>
+        <p>Uncurated · © 2025 · Powered by Claude · No affiliate data collected · <a href="https://tally.so/r/2E1DP9" target="_blank" rel="noopener noreferrer" class="footer-link">Give feedback</a></p>
       </footer>
     </div>
 
