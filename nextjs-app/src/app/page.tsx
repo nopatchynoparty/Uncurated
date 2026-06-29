@@ -359,7 +359,11 @@ export default function Home() {
 
         <footer className="footer">
           <p>
-            Uncurated · © 2025 · Powered by Claude · No affiliate data collected ·{' '}
+            Uncurated · © 2026 · Powered by Claude ·{' '}
+            <a href="/privacy" className="footer-link">Privacy</a>
+            {' · '}
+            <a href="/terms" className="footer-link">Terms</a>
+            {' · '}
             <a
               href="https://tally.so/r/2E1DP9"
               target="_blank"
@@ -368,6 +372,9 @@ export default function Home() {
             >
               Give feedback
             </a>
+          </p>
+          <p className="footer-affiliate">
+            As an Amazon Associate we earn from qualifying purchases.
           </p>
         </footer>
       </div>
